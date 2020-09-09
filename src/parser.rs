@@ -116,7 +116,7 @@ mod test {
         let input = "
         let x = 5;
         let y = 10;
-        let  838383;
+        let  foobar = 838383;
       "
         .to_string();
 
@@ -145,12 +145,37 @@ mod test {
             _ => return false,
         }
     }
+
+    #[test]
+    fn test_return_statements() {
+        let input = "
+        return 5;
+        return 10;
+        return 993322;
+      "
+        .to_string();
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+        check_parser_errors(&parser);
+
+        assert_eq!(program.statements.len(), 3);
+
+        for stmt in program.statements {
+            match stmt {
+                Statement::ReturnStatement { return_value } => {}
+                _ => panic!(),
+            }
+        }
+    }
+
     fn check_parser_errors(p: &Parser) {
         let errors = &p.errors;
         if errors.len() == 0 {
             return;
         }
-        println!("reached here");
 
         println!("parser has {} errors", errors.len());
         for error in errors.iter() {
