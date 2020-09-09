@@ -1,8 +1,11 @@
+use ast::{Expression, Identifier, Program, Statement};
 use lexer::Lexer;
 use repl::Repl;
 use token::{Token, TokenType};
 
+mod ast;
 mod lexer;
+mod parser;
 mod repl;
 mod token;
 
