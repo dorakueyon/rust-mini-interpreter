@@ -58,13 +58,13 @@ impl Parser {
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.current_token.token_type {
             TokenType::Let => return self.parse_let_statement(),
+            TokenType::Return => return self.parse_return_statement(),
             _ => return None,
         };
     }
 
     fn parse_let_statement(&mut self) -> Option<Statement> {
         if !self.expect_peek(TokenType::Ident) {
-            dbg!(&self);
             return None;
         }
         let identifier = Identifier {
@@ -72,7 +72,6 @@ impl Parser {
             value: self.current_token.literal.clone(),
         };
         if !self.expect_peek(TokenType::Assign) {
-            dbg!(&self);
             return None;
         }
 
@@ -89,6 +88,20 @@ impl Parser {
         });
     }
 
+    fn parse_return_statement(&mut self) -> Option<Statement> {
+        self.next_token();
+        loop {
+            if self.current_token_is(TokenType::Semicolon) {
+                break;
+            }
+            self.next_token()
+        }
+
+        return Some(Statement::ReturnStatement {
+            return_value: Expression::Default,
+        });
+    }
+
     fn current_token_is(&self, t: TokenType) -> bool {
         return true;
     }
@@ -98,6 +111,7 @@ impl Parser {
             self.next_token();
             return true;
         } else {
+            println!("expected {:?}. got {:?}", t, self.peek_token.token_type);
             self.errors.push(ParseError::DefaultError);
             return false;
         }

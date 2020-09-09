@@ -6,6 +6,9 @@ pub enum Statement {
         identifier: Identifier,
         value: Expression,
     },
+    ReturnStatement {
+        return_value: Expression,
+    },
 }
 
 #[derive(Debug)]
