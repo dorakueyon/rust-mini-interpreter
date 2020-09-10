@@ -72,12 +72,8 @@ impl Expression {
                 operator,
                 right,
             } => {
-                let mut s = String::new();
-                s.push_str("(");
-                s.push_str(operator);
-                s.push_str(&right.get_value());
-                s.push_str(")");
-                s
+                let s = format!("({}{})", operator, &right.get_value());
+                return s;
             }
             Expression::InfixExp {
                 token,
@@ -85,13 +81,13 @@ impl Expression {
                 operator,
                 left,
             } => {
-                let mut s = String::new();
-                s.push_str("(");
-                s.push_str(&left.get_value());
-                s.push_str(operator);
-                s.push_str(&right.get_value());
-                s.push_str(")");
-                s
+                let s = format!(
+                    "({} {} {})",
+                    &left.get_value(),
+                    operator,
+                    &right.get_value()
+                );
+                return s;
             }
             _ => "not defined".to_string(),
         }
