@@ -34,7 +34,7 @@ pub enum TokenType {
   Assign,
   Plus,
   Minus,
-  Bang,
+  Bang, // !
   Asterisk,
   Slash,
 
