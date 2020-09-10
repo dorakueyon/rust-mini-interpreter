@@ -79,6 +79,20 @@ impl Expression {
                 s.push_str(")");
                 s
             }
+            Expression::InfixExp {
+                token,
+                right,
+                operator,
+                left,
+            } => {
+                let mut s = String::new();
+                s.push_str("(");
+                s.push_str(&left.get_value());
+                s.push_str(operator);
+                s.push_str(&right.get_value());
+                s.push_str(")");
+                s
+            }
             _ => "not defined".to_string(),
         }
     }
@@ -93,6 +107,12 @@ pub enum Expression {
         token: TokenType,
         operator: String,
         right: Box<Expression>,
+    },
+    InfixExp {
+        token: TokenType,
+        right: Box<Expression>,
+        operator: String,
+        left: Box<Expression>,
     },
 }
 

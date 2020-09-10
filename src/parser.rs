@@ -10,9 +10,15 @@ struct Parser {
     errors: Vec<ParseError>,
 }
 
+#[derive(PartialOrd, PartialEq, Debug)]
 enum Precedence {
     Lowest,
-    Prefix,
+    Equals,      // ==
+    LessGreater, //> || <
+    Sum,         //+ || -
+    Product,     // * || /
+    Prefix,      //-X || !X
+    Call,        //myFunction(X)
 }
 
 impl Parser {
@@ -77,7 +83,6 @@ impl Parser {
             token: self.current_token.token_type,
             value: self.current_token.literal.clone(),
         };
-        dbg!(&identifier);
         if !self.expect_peek(TokenType::Assign) {
             return None;
         }
@@ -116,15 +121,33 @@ impl Parser {
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
-        let left = match self.current_token.token_type {
+        let mut left = match self.current_token.token_type {
             TokenType::Ident => self.parse_ident_expression(),
             TokenType::Int => self.parse_integer_expression(),
-            TokenType::Bang | TokenType::Minus => self.parse_prefix_expression(),
+            TokenType::Bang | TokenType::Minus | TokenType::Plus => self.parse_prefix_expression(),
             _ => {
                 println!("no predefined parse expression: {:?}", self.current_token);
                 None
             }
         };
+
+        while !self.peek_token_is(TokenType::Semicolon) && precedence < self.peek_predecence() {
+            match self.peek_token.token_type {
+                TokenType::Plus
+                | TokenType::Minus
+                | TokenType::Slash
+                | TokenType::Asterisk
+                | TokenType::Eq
+                | TokenType::NotEq
+                | TokenType::Lt
+                | TokenType::Gt => {
+                    self.next_token();
+                    left = self.parse_infix_expression(left.unwrap());
+                }
+                _ => return left,
+            };
+        }
+
         left
     }
 
@@ -153,6 +176,40 @@ impl Parser {
             operator,
             right,
         })
+    }
+
+    fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
+        let token = self.current_token.token_type.clone();
+        let operator = self.current_token.literal.clone();
+        let precedence = self.current_precedence();
+        self.next_token();
+        let left = Box::new(left);
+        let right = Box::new(self.parse_expression(precedence).unwrap());
+
+        Some(Expression::InfixExp {
+            token,
+            left,
+            operator,
+            right,
+        })
+    }
+
+    fn token_to_precedence(token: TokenType) -> Precedence {
+        match token {
+            TokenType::Eq | TokenType::NotEq => Precedence::Equals,
+            TokenType::Lt | TokenType::Gt => Precedence::LessGreater,
+            TokenType::Plus | TokenType::Minus => Precedence::Sum,
+            TokenType::Slash | TokenType::Asterisk => Precedence::Product,
+            _ => Precedence::Lowest,
+        }
+    }
+
+    fn peek_predecence(&self) -> Precedence {
+        Parser::token_to_precedence(self.peek_token.token_type)
+    }
+
+    fn current_precedence(&self) -> Precedence {
+        Parser::token_to_precedence(self.current_token.token_type)
     }
 
     fn current_token_is(&self, t: TokenType) -> bool {
@@ -193,7 +250,6 @@ mod test {
         let program = parser.parse_program();
         check_parser_errors(&parser);
 
-        dbg!(&program);
         assert_eq!(program.statements.len(), 3);
         let tests = vec!["x", "y", "foobar"];
 
@@ -300,6 +356,46 @@ mod test {
                     } => {
                         assert_eq!(operator, tt.1);
                         assert!(test_integer_literal(right, tt.2));
+                    }
+                    _ => panic!(),
+                },
+                _ => panic!(),
+            }
+        }
+    }
+
+    #[test]
+    fn test_parsing_infix_expressions() {
+        let infix_tests = vec![
+            // 0: input, 1: left_value, 2: operator, 3: right_value
+            ("5 + 5", 5, "+", 5),
+            ("5 - 5", 5, "-", 5),
+            ("5 * 5", 5, "*", 5),
+            ("5 / 5", 5, "/", 5),
+            ("5 > 5", 5, ">", 5),
+            ("5 < 5", 5, "<", 5),
+            ("5 == 5", 5, "==", 5),
+            ("5 != 5", 5, "!=", 5),
+        ];
+
+        for tt in infix_tests.iter() {
+            let l = Lexer::new(tt.0.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parser_errors(&p);
+
+            assert_eq!(program.statements.len(), 1);
+            match &program.statements[0] {
+                Statement::ExpressionStatement { expression } => match expression {
+                    Expression::InfixExp {
+                        token,
+                        left,
+                        operator,
+                        right,
+                    } => {
+                        assert!(test_integer_literal(left, tt.1));
+                        assert_eq!(operator, tt.2);
+                        assert!(test_integer_literal(right, tt.3));
                     }
                     _ => panic!(),
                 },
