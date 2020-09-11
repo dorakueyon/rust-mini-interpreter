@@ -125,6 +125,7 @@ impl Parser {
             TokenType::Ident => self.parse_ident_expression(),
             TokenType::Int => self.parse_integer_expression(),
             TokenType::Bang | TokenType::Minus | TokenType::Plus => self.parse_prefix_expression(),
+            TokenType::True | TokenType::False => self.parse_boolean_expression(),
             _ => {
                 println!("no predefined parse expression: {:?}", self.current_token);
                 None
@@ -192,6 +193,10 @@ impl Parser {
             operator,
             right,
         })
+    }
+
+    fn parse_boolean_expression(&mut self) -> Option<Expression> {
+        Some(Expression::BooleanExp(self.current_token.token_type))
     }
 
     fn token_to_precedence(token: TokenType) -> Precedence {
@@ -295,6 +300,27 @@ mod test {
             }
         }
     }
+
+    #[test]
+    fn test_boolean_expression() {
+        let input = "true;".to_string();
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&p);
+
+        assert_eq!(program.statements.len(), 1);
+        match &program.statements[0] {
+            Statement::ExpressionStatement { expression } => match expression {
+                Expression::BooleanExp(_) => {
+                    assert_eq!(format!("{}", expression), "true".to_string())
+                }
+                _ => panic!(),
+            },
+            _ => panic!(),
+        }
+    }
+
     #[test]
     fn test_identifier_expression() {
         let input = "foobar;".to_string();

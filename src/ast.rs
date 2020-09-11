@@ -76,6 +76,11 @@ impl Display for Expression {
                 operator,
                 left,
             } => format!("({} {} {})", &left, operator, &right),
+            Expression::BooleanExp(token) => match token {
+                TokenType::True => "true".to_string(),
+                TokenType::False => "false".to_string(),
+                _ => "not defined".to_string(),
+            },
             _ => "not defined".to_string(),
         };
 
@@ -99,6 +104,7 @@ pub enum Expression {
         operator: String,
         left: Box<Expression>,
     },
+    BooleanExp(TokenType),
 }
 
 #[derive(Debug)]
