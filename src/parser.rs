@@ -355,7 +355,7 @@ mod test {
                         right,
                     } => {
                         assert_eq!(operator, tt.1);
-                        assert!(test_integer_literal(right, tt.2));
+                        assert!(test_integer_literal(Box::new(right.as_ref()), &tt.2));
                     }
                     _ => panic!(),
                 },
@@ -393,9 +393,10 @@ mod test {
                         operator,
                         right,
                     } => {
-                        assert!(test_integer_literal(left, tt.1));
+                        assert!(test_integer_literal(Box::new(left.as_ref()), &tt.1));
                         assert_eq!(operator, tt.2);
-                        assert!(test_integer_literal(right, tt.3));
+                        assert!(test_integer_literal(Box::new(right.as_ref()), &tt.3));
+                        //assert!(test_infix_expression(expression, left, operator, right));
                     }
                     _ => panic!(),
                 },
@@ -429,15 +430,76 @@ mod test {
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parser_errors(&p);
+            dbg!(&program);
 
             assert_eq!(format!("{}", program), tt.1);
         }
     }
 
-    fn test_integer_literal(il: &Box<Expression>, value: i64) -> bool {
+    fn test_identifier(exp: &Expression, value: String) -> bool {
+        match exp {
+            Expression::IdentExpr(s) => {
+                assert_eq!(s, &value);
+                assert_eq!(&exp.get_value(), &value);
+                return true;
+            }
+            _ => {
+                println!("expression not IdentExpr");
+                return false;
+            }
+        }
+    }
+
+    trait TestLiteral<T> {
+        fn test_literal(self, exp: &Expression) -> bool;
+    }
+    impl TestLiteral<Box<i64>> for Box<i64> {
+        fn test_literal(self, exp: &Expression) -> bool {
+            test_integer_literal(Box::new(&exp), self.as_ref())
+        }
+    }
+    impl TestLiteral<String> for String {
+        fn test_literal(self, exp: &Expression) -> bool {
+            test_identifier(exp, self)
+        }
+    }
+
+    fn test_literal_expression<T>(exp: &Expression, expected: T) -> bool
+    where
+        T: TestLiteral<T>,
+    {
+        expected.test_literal(exp)
+    }
+
+    fn test_infix_expression<T>(
+        exp: &Expression,
+        left_arg: T,
+        operator_arg: &String,
+        right_arg: T,
+    ) -> bool
+    where
+        T: TestLiteral<T>,
+    {
+        match exp {
+            Expression::InfixExp {
+                token,
+                operator,
+                left,
+                right,
+            } => {
+                assert!(test_literal_expression(left.as_ref(), left_arg));
+                assert_eq!(operator, operator_arg);
+                assert!(test_literal_expression(right.as_ref(), right_arg));
+            }
+            _ => panic!(),
+        }
+        true
+    }
+
+    fn test_integer_literal(il: Box<&Expression>, value: &i64) -> bool {
         match il.as_ref() {
             Expression::IntegerExpr(i) => {
-                assert_eq!(i, &value);
+                assert_eq!(i, value);
                 assert_eq!(format!("{}", il.get_value()), value.to_string())
             }
             _ => panic!(),
