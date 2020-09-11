@@ -440,7 +440,7 @@ mod test {
         match exp {
             Expression::IdentExpr(s) => {
                 assert_eq!(s, &value);
-                assert_eq!(&exp.get_value(), &value);
+                assert_eq!(format!("{}", &exp), value);
                 return true;
             }
             _ => {
@@ -500,7 +500,7 @@ mod test {
         match il.as_ref() {
             Expression::IntegerExpr(i) => {
                 assert_eq!(i, value);
-                assert_eq!(format!("{}", il.get_value()), value.to_string())
+                assert_eq!(format!("{}", il), value.to_string())
             }
             _ => panic!(),
         }

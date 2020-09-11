@@ -49,48 +49,37 @@ impl Display for Statement {
                 "{} {} = {};",
                 self.token_literal(),
                 identifier.value,
-                value.get_value()
+                value
             ),
             Statement::ReturnStatement { return_value } => {
-                write!(f, "{} {};", self.token_literal(), return_value.get_value())
+                write!(f, "{} {};", self.token_literal(), return_value)
             }
-            Statement::ExpressionStatement { expression } => {
-                write!(f, "{}", expression.get_value())
-            }
+            Statement::ExpressionStatement { expression } => write!(f, "{}", expression),
             _ => write!(f, "hoge"),
         }
     }
 }
 
-impl Expression {
-    pub fn get_value(&self) -> String {
-        match self {
+impl Display for Expression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FormatterResult {
+        let s = match self {
             Expression::IntegerExpr(i) => i.to_string(),
             Expression::IdentExpr(s) => s.clone(),
             Expression::PrefixExp {
                 token,
                 operator,
                 right,
-            } => {
-                let s = format!("({}{})", operator, &right.get_value());
-                return s;
-            }
+            } => format!("({}{})", operator, &right),
             Expression::InfixExp {
                 token,
                 right,
                 operator,
                 left,
-            } => {
-                let s = format!(
-                    "({} {} {})",
-                    &left.get_value(),
-                    operator,
-                    &right.get_value()
-                );
-                return s;
-            }
+            } => format!("({} {} {})", &left, operator, &right),
             _ => "not defined".to_string(),
-        }
+        };
+
+        write!(f, "{}", s)
     }
 }
 
