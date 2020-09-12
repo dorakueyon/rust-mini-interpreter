@@ -113,6 +113,17 @@ impl Display for Expression {
                 }
                 s
             }
+            Expression::FnExp { parameters, body } => {
+                let mut s = String::new();
+                s.push_str("fn(");
+                for p in parameters {
+                    s.push_str(&p.value);
+                }
+                s.push_str(")");
+                s.push_str(&format!("{}", body));
+
+                s
+            }
             _ => "not defined".to_string(),
         };
 
@@ -141,6 +152,10 @@ pub enum Expression {
         condition: Box<Expression>,
         consequesnce: BlockStatement,
         alternative: Option<BlockStatement>,
+    },
+    FnExp {
+        parameters: Vec<Identifier>,
+        body: BlockStatement,
     },
 }
 

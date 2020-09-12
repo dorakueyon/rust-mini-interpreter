@@ -128,6 +128,7 @@ impl Parser {
             TokenType::True | TokenType::False => self.parse_boolean_expression(),
             TokenType::Lparen => self.parse_grouped_expression(),
             TokenType::If => self.parse_if_expression(),
+            TokenType::Function => self.parse_fn_expression(),
             _ => {
                 println!("no predefined parse expression: {:?}", self.current_token);
                 None
@@ -256,6 +257,50 @@ impl Parser {
         }
 
         BlockStatement { statements }
+    }
+
+    fn parse_fn_expression(&mut self) -> Option<Expression> {
+        if !self.expect_peek(TokenType::Lparen) {
+            return None;
+        }
+        let parameters = self.parse_function_parameters();
+
+        if !self.expect_peek(TokenType::Lbrace) {
+            return None;
+        }
+        let body = self.parse_block_statement();
+
+        Some(Expression::FnExp { parameters, body })
+    }
+
+    fn parse_function_parameters(&mut self) -> Vec<Identifier> {
+        let mut identifiers: Vec<Identifier> = Vec::new();
+
+        if self.peek_token_is(TokenType::Rparen) {
+            self.next_token();
+            return identifiers;
+        }
+        self.next_token();
+
+        identifiers.push(Identifier {
+            token: self.current_token.token_type,
+            value: self.current_token.literal.to_string(),
+        });
+
+        while self.peek_token_is(TokenType::Comma) {
+            self.next_token();
+            self.next_token();
+            identifiers.push(Identifier {
+                token: self.current_token.token_type,
+                value: self.current_token.literal.to_string(),
+            });
+        }
+
+        if !self.expect_peek(TokenType::Rparen) {
+            return vec![];
+        }
+
+        identifiers
     }
 
     fn token_to_precedence(token: TokenType) -> Precedence {
@@ -652,6 +697,71 @@ mod test {
                 _ => panic!(),
             },
             _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn test_function_literal_parsing() {
+        let input = "fn(x, y) { x + y);".to_string();
+
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&p);
+
+        assert_eq!(program.statements.len(), 1);
+
+        match &program.statements[0] {
+            Statement::ExpressionStatement { expression } => match expression {
+                Expression::FnExp { parameters, body } => {
+                    assert_eq!(parameters.len(), 2);
+                    assert_eq!(parameters[0].value, "x");
+                    assert_eq!(parameters[1].value, "y");
+                    assert_eq!(body.statements.len(), 1);
+                    match &body.statements[0] {
+                        Statement::ExpressionStatement { expression } => {
+                            assert!(test_infix_expression(
+                                expression,
+                                "x".to_string(),
+                                &"+".to_string(),
+                                "y".to_string()
+                            ))
+                        }
+                        _ => panic!(),
+                    }
+                }
+                _ => panic!(),
+            },
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn test_function_parameter_parsing() {
+        let tests = vec![
+            ("fn() {};", vec![]),
+            ("fn(x) {};", vec!["x"]),
+            ("fn(x,y,z) {};", vec!["x", "y", "z"]),
+        ];
+
+        for tt in tests {
+            let l = Lexer::new(tt.0.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parser_errors(&p);
+
+            match &program.statements[0] {
+                Statement::ExpressionStatement { expression } => match expression {
+                    Expression::FnExp { parameters, body } => {
+                        assert_eq!(parameters.len(), tt.1.len());
+                        for (i, ident) in parameters.iter().enumerate() {
+                            assert_eq!(ident.value, tt.1[i]);
+                        }
+                    }
+                    _ => panic!(),
+                },
+                _ => panic!(),
+            }
         }
     }
 
