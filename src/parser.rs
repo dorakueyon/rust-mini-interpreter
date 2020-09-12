@@ -1,4 +1,4 @@
-use super::{Expression, Identifier, Lexer, Program, Statement, Token, TokenType};
+use super::{BlockStatement, Expression, Identifier, Lexer, Program, Statement, Token, TokenType};
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter, Result as FormatterResult};
 
@@ -127,6 +127,7 @@ impl Parser {
             TokenType::Bang | TokenType::Minus | TokenType::Plus => self.parse_prefix_expression(),
             TokenType::True | TokenType::False => self.parse_boolean_expression(),
             TokenType::Lparen => self.parse_grouped_expression(),
+            TokenType::If => self.parse_if_expression(),
             _ => {
                 println!("no predefined parse expression: {:?}", self.current_token);
                 None
@@ -207,6 +208,54 @@ impl Parser {
             return None;
         }
         return exp;
+    }
+
+    fn parse_if_expression(&mut self) -> Option<Expression> {
+        if !self.expect_peek(TokenType::Lparen) {
+            return None;
+        }
+        self.next_token();
+        let condition = self.parse_expression(Precedence::Lowest).unwrap();
+
+        if !self.expect_peek(TokenType::Rparen) {
+            return None;
+        }
+
+        if !self.expect_peek(TokenType::Lbrace) {
+            return None;
+        }
+
+        let consequesnce = self.parse_block_statement();
+
+        let mut alternative: Option<BlockStatement> = None;
+        if self.peek_token_is(TokenType::Else) {
+            self.next_token();
+
+            if !self.expect_peek(TokenType::Lbrace) {
+                return None;
+            }
+            alternative = Some(self.parse_block_statement())
+        }
+
+        Some(Expression::IfExp {
+            condition: Box::new(condition),
+            consequesnce,
+            alternative,
+        })
+    }
+
+    fn parse_block_statement(&mut self) -> BlockStatement {
+        let mut statements: Vec<Statement> = Vec::new();
+        self.next_token();
+
+        while !self.current_token_is(TokenType::Rbrace) && !self.current_token_is(TokenType::Eof) {
+            if let Some(s) = self.parse_statement() {
+                statements.push(s)
+            }
+            self.next_token();
+        }
+
+        BlockStatement { statements }
     }
 
     fn token_to_precedence(token: TokenType) -> Precedence {
@@ -524,6 +573,85 @@ mod test {
                 println!("expression not IdentExpr");
                 return false;
             }
+        }
+    }
+
+    #[test]
+    fn test_if_ixpression() {
+        let input = "if ( x < y) { x }";
+
+        let l = Lexer::new(input.to_string());
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&p);
+
+        assert_eq!(program.statements.len(), 1);
+
+        match &program.statements[0] {
+            Statement::ExpressionStatement { expression } => match expression {
+                Expression::IfExp {
+                    condition,
+                    consequesnce,
+                    alternative,
+                } => {
+                    //assert!(test_infix_expression(exp, left_arg, operator_arg, right_arg))}
+                    assert_eq!(consequesnce.statements.len(), 1);
+                    match &consequesnce.statements[0] {
+                        Statement::ExpressionStatement { expression } => {
+                            assert!(test_identifier(expression, "x".to_string()));
+                        }
+                        _ => panic!(),
+                    }
+                    assert!(alternative.is_none());
+                }
+                _ => panic!(),
+            },
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn test_if_else_ixpression() {
+        let input = "if ( x < y) { x } else { y }";
+
+        let l = Lexer::new(input.to_string());
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&p);
+
+        assert_eq!(program.statements.len(), 1);
+
+        match &program.statements[0] {
+            Statement::ExpressionStatement { expression } => match expression {
+                Expression::IfExp {
+                    condition,
+                    consequesnce,
+                    alternative,
+                } => {
+                    //assert!(test_infix_expression(exp, left_arg, operator_arg, right_arg))}
+                    assert_eq!(consequesnce.statements.len(), 1);
+                    match &consequesnce.statements[0] {
+                        Statement::ExpressionStatement { expression } => {
+                            assert!(test_identifier(expression, "x".to_string()));
+                        }
+                        _ => panic!(),
+                    }
+                    match alternative {
+                        Some(blc) => {
+                            assert_eq!(blc.statements.len(), 1);
+                            match &blc.statements[0] {
+                                Statement::ExpressionStatement { expression } => {
+                                    assert!(test_identifier(expression, "y".to_string()));
+                                }
+                                _ => panic!(),
+                            }
+                        }
+                        None => panic!(),
+                    }
+                }
+                _ => panic!(),
+            },
+            _ => panic!(),
         }
     }
 

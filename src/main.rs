@@ -1,4 +1,4 @@
-use ast::{Expression, Identifier, Program, Statement};
+use ast::{BlockStatement, Expression, Identifier, Program, Statement};
 use lexer::Lexer;
 use repl::Repl;
 use token::{Token, TokenType};

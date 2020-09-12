@@ -15,6 +15,11 @@ pub enum Statement {
     },
 }
 
+#[derive(Debug)]
+pub struct BlockStatement {
+    pub statements: Vec<Statement>,
+}
+
 impl Statement {
     pub fn token_literal(&self) -> String {
         match self {
@@ -31,6 +36,17 @@ impl Statement {
 }
 
 impl Display for Program {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FormatterResult {
+        let mut s = String::new();
+        for stmt in self.statements.iter() {
+            let fmt = format!("{}", stmt);
+            s.push_str(&fmt)
+        }
+        return write!(f, "{}", s);
+    }
+}
+
+impl Display for BlockStatement {
     fn fmt(&self, f: &mut Formatter<'_>) -> FormatterResult {
         let mut s = String::new();
         for stmt in self.statements.iter() {
@@ -81,6 +97,22 @@ impl Display for Expression {
                 TokenType::False => "false".to_string(),
                 _ => "not defined".to_string(),
             },
+            Expression::IfExp {
+                condition,
+                consequesnce,
+                alternative,
+            } => {
+                let mut s = String::new();
+                s.push_str("if");
+                s.push_str(&format!("{}", condition.as_ref()));
+                s.push_str(" ");
+                s.push_str(&format!("{}", consequesnce));
+                if let Some(alt) = alternative {
+                    s.push_str("else");
+                    s.push_str(&format!("{}", alt));
+                }
+                s
+            }
             _ => "not defined".to_string(),
         };
 
@@ -105,6 +137,11 @@ pub enum Expression {
         left: Box<Expression>,
     },
     BooleanExp(TokenType),
+    IfExp {
+        condition: Box<Expression>,
+        consequesnce: BlockStatement,
+        alternative: Option<BlockStatement>,
+    },
 }
 
 #[derive(Debug)]
