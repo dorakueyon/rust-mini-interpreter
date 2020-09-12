@@ -429,6 +429,38 @@ mod test {
                 _ => panic!(),
             }
         }
+
+        let infix_tests = vec![
+            // 0: input, 1: left_value, 2: operator, 3: right_value
+            ("true == true", true, "==", true),
+            ("true != true", true, "!=", true),
+            ("false == false", false, "==", false),
+        ];
+
+        for tt in infix_tests.iter() {
+            let l = Lexer::new(tt.0.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parser_errors(&p);
+
+            assert_eq!(program.statements.len(), 1);
+            match &program.statements[0] {
+                Statement::ExpressionStatement { expression } => match expression {
+                    Expression::InfixExp {
+                        token,
+                        left,
+                        operator,
+                        right,
+                    } => {
+                        assert!(test_boolean_literal(left, tt.1));
+                        assert_eq!(operator, &tt.2.to_string());
+                        assert!(test_boolean_literal(right, tt.3));
+                    }
+                    _ => panic!(),
+                },
+                _ => panic!(),
+            }
+        }
     }
 
     #[test]
@@ -449,6 +481,10 @@ mod test {
                 "3 + 4 * 5 == 3 * 1 + 4 * 5",
                 "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
             ),
+            ("true", "true"),
+            ("false", "false"),
+            ("3 < 5 == true", "((3 < 5) == true)"),
+            ("3 > 5 == false", "((3 > 5) == false)"),
         ];
 
         for tt in tests.iter() {
@@ -495,6 +531,25 @@ mod test {
         T: TestLiteral<T>,
     {
         expected.test_literal(exp)
+    }
+
+    fn test_boolean_literal(exp: &Expression, value: bool) -> bool {
+        match exp {
+            Expression::BooleanExp(t) => match t {
+                TokenType::True => {
+                    assert!(value);
+                    assert_eq!(format!("{}", exp), "true");
+                }
+                TokenType::False => {
+                    assert!(!value);
+                    assert_eq!(format!("{}", exp), "false");
+                }
+                _ => return false,
+            },
+            _ => return false,
+        }
+
+        return true;
     }
 
     fn test_infix_expression<T>(
