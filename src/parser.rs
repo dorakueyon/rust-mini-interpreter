@@ -126,6 +126,7 @@ impl Parser {
             TokenType::Int => self.parse_integer_expression(),
             TokenType::Bang | TokenType::Minus | TokenType::Plus => self.parse_prefix_expression(),
             TokenType::True | TokenType::False => self.parse_boolean_expression(),
+            TokenType::Lparen => self.parse_grouped_expression(),
             _ => {
                 println!("no predefined parse expression: {:?}", self.current_token);
                 None
@@ -197,6 +198,15 @@ impl Parser {
 
     fn parse_boolean_expression(&mut self) -> Option<Expression> {
         Some(Expression::BooleanExp(self.current_token.token_type))
+    }
+
+    fn parse_grouped_expression(&mut self) -> Option<Expression> {
+        self.next_token();
+        let exp = self.parse_expression(Precedence::Lowest);
+        if !self.expect_peek(TokenType::Rparen) {
+            return None;
+        }
+        return exp;
     }
 
     fn token_to_precedence(token: TokenType) -> Precedence {
@@ -485,6 +495,11 @@ mod test {
             ("false", "false"),
             ("3 < 5 == true", "((3 < 5) == true)"),
             ("3 > 5 == false", "((3 > 5) == false)"),
+            ("1 + (2+ 3) + 4", "((1 + (2 + 3)) + 4)"),
+            ("(5 + 5) * 2", "((5 + 5) * 2)"),
+            ("2 / ( 5 + 5)", "(2 / (5 + 5))"),
+            ("-( 5 + 5)", "(-(5 + 5))"),
+            ("!(true  == true)", "(!(true == true))"),
         ];
 
         for tt in tests.iter() {
@@ -492,7 +507,7 @@ mod test {
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parser_errors(&p);
-            dbg!(&program);
+            //dbg!(&program);
 
             assert_eq!(format!("{}", program), tt.1);
         }
