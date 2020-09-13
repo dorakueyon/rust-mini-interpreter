@@ -1,4 +1,4 @@
-use super::{Lexer, ParseError, Parser, TokenType};
+use super::{Eval, Lexer, ParseError, Parser, TokenType};
 use std::io;
 use std::io::Write;
 
@@ -22,8 +22,12 @@ impl Repl {
             Repl::print_parse_errors(p.errors);
             continue;
           }
-          println!("{}", program);
-          io::stdout().flush().unwrap();
+          if let Some(evaluated) = program.eval() {
+            println!("{}", evaluated.inspect());
+            io::stdout().flush().unwrap();
+          }
+          //println!("{}", program);
+          //io::stdout().flush().unwrap();
         }
         Err(_) => break,
       }

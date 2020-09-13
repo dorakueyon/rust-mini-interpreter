@@ -1,4 +1,5 @@
 use ast::{BlockStatement, Expression, Identifier, Program, Statement};
+use evaluator::Eval;
 use lexer::Lexer;
 use object::Object;
 use parser::{ParseError, Parser};
