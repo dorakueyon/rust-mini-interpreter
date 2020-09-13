@@ -57,6 +57,7 @@ impl Eval for &Expression {
 fn eval_prefix_expression(operator: &str, right: Object) -> Option<Object> {
   match operator {
     "!" => Some(eval_bang_operator_expression(right)),
+    "-" => Some(eval_minus_prefix_operator_expression(right)),
     _ => None,
   }
 }
@@ -73,13 +74,19 @@ fn eval_bang_operator_expression(right: Object) -> Object {
     _ => Object::BooleanObj(false),
   }
 }
+fn eval_minus_prefix_operator_expression(obj: Object) -> Object {
+  match obj {
+    Object::IntegerObj(i) => Object::IntegerObj(-i),
+    _ => Object::Null,
+  }
+}
 
 #[cfg(test)]
 mod test {
   use super::*;
   #[test]
   fn test_eval_integer_expression() {
-    let tests = vec![("5", 5), ("10", 10)];
+    let tests = vec![("5", 5), ("10", 10), ("-5", -5), ("-10", -10)];
 
     for tt in tests {
       let evaluated = test_eval(tt.0.to_string()).unwrap();
