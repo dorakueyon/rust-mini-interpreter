@@ -143,9 +143,9 @@ pub enum Expression {
     },
     InfixExp {
         token: TokenType,
-        right: Box<Expression>,
-        operator: String,
         left: Box<Expression>,
+        operator: String,
+        right: Box<Expression>,
     },
     BooleanExp(TokenType),
     IfExp {
