@@ -1,4 +1,4 @@
-use super::{Expression, Lexer, Object, Parser, Program, Statement};
+use super::{Expression, Lexer, Object, Parser, Program, Statement, TokenType};
 
 pub trait Eval {
   fn eval(&self) -> Option<Object>;
@@ -33,8 +33,13 @@ impl Eval for Expression {
   fn eval(&self) -> Option<Object> {
     match self {
       Expression::IntegerExpr(i) => {
-        return Some(Object::Integer(i.clone()));
+        return Some(Object::IntegerObj(i.clone()));
       }
+      Expression::BooleanExp(t) => match t {
+        TokenType::True => Some(Object::BooleanObj(true)),
+        TokenType::False => Some(Object::BooleanObj(false)),
+        _ => None,
+      },
       _ => None,
     }
   }
@@ -53,6 +58,15 @@ mod test {
     }
   }
 
+  #[test]
+  fn test_eval_boolean_expression() {
+    let tests = vec![("true", true), ("false", false)];
+    for tt in tests {
+      let evaluated = test_eval(tt.0.to_string()).unwrap();
+      assert!(test_boolean_object(&evaluated, tt.1))
+    }
+  }
+
   fn test_eval(input: String) -> Option<Object> {
     let l = Lexer::new(input);
     let mut p = Parser::new(l);
@@ -66,8 +80,19 @@ mod test {
 
   fn test_integer_object(obj: &Object, expected: i64) -> bool {
     match obj {
-      Object::Integer(value) => {
+      Object::IntegerObj(value) => {
         assert_eq!(value, &expected);
+        return true;
+      }
+      _ => panic!(),
+    }
+    false
+  }
+
+  fn test_boolean_object(obj: &Object, expected: bool) -> bool {
+    match obj {
+      Object::BooleanObj(b) => {
+        assert_eq!(b, &expected);
         return true;
       }
       _ => panic!(),

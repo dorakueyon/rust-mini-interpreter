@@ -1,12 +1,15 @@
 #[derive(Debug)]
 pub enum Object {
-  Integer(i64),
+  IntegerObj(i64),
+  BooleanObj(bool),
 }
 
 impl Object {
   pub fn inspect(&self) -> String {
     match self {
-      Object::Integer(i) => format!("{}", i),
+      Object::IntegerObj(i) => format!("{}", i),
+      Object::BooleanObj(b) => format!("{}", b),
+      _ => "".to_string(),
     }
   }
 }
