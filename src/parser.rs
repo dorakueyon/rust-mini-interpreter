@@ -3,11 +3,11 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter, Result as FormatterResult};
 
 #[derive(Debug)]
-struct Parser {
+pub struct Parser {
     lexer: Lexer,
     current_token: Token,
     peek_token: Token,
-    errors: Vec<ParseError>,
+    pub errors: Vec<ParseError>,
 }
 
 #[derive(PartialOrd, PartialEq, Debug)]
@@ -51,7 +51,7 @@ impl Parser {
         self.peek_token = self.lexer.next_token()
     }
 
-    fn parse_program(&mut self) -> Program {
+    pub fn parse_program(&mut self) -> Program {
         let mut statements: Vec<Statement> = Vec::new();
 
         loop {
@@ -960,7 +960,7 @@ mod test {
 
 impl Error for ParseError {}
 
-enum ParseError {
+pub enum ParseError {
     DefaultError,
 }
 

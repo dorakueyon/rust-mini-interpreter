@@ -1,4 +1,4 @@
-use super::{Lexer, TokenType};
+use super::{Lexer, ParseError, Parser, TokenType};
 use std::io;
 use std::io::Write;
 
@@ -15,16 +15,23 @@ impl Repl {
       match io::stdin().read_line(&mut input) {
         Ok(_) => {
           let mut l = Lexer::new(input);
-          loop {
-            let tok = l.next_token();
-            println!("{:?}", &tok);
-            if tok.token_type == TokenType::Eof {
-              break;
-            }
+          let mut p = Parser::new(l);
+          let program = p.parse_program();
+
+          if p.errors.len() != 0 {
+            Repl::print_parse_errors(p.errors);
+            continue;
           }
+          println!("{}", program);
+          io::stdout().flush().unwrap();
         }
         Err(_) => break,
       }
+    }
+  }
+  fn print_parse_errors(errors: Vec<ParseError>) {
+    for pe in errors.iter() {
+      println!("{}", pe)
     }
   }
 }

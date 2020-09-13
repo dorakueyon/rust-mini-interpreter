@@ -1,5 +1,6 @@
 use ast::{BlockStatement, Expression, Identifier, Program, Statement};
 use lexer::Lexer;
+use parser::{ParseError, Parser};
 use repl::Repl;
 use token::{Token, TokenType};
 
