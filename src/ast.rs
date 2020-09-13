@@ -81,6 +81,7 @@ impl Display for Expression {
         let s = match self {
             Expression::IntegerExpr(i) => i.to_string(),
             Expression::IdentExpr(s) => s.clone(),
+            Expression::StrExpr(s) => s.clone(),
             Expression::PrefixExp {
                 token,
                 operator,
@@ -154,6 +155,7 @@ pub enum Expression {
     Default,
     IntegerExpr(i64),
     IdentExpr(String),
+    StrExpr(String),
     PrefixExp {
         token: TokenType,
         operator: String,

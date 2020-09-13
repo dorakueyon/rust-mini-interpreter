@@ -80,6 +80,13 @@ impl Lexer {
       b'>' => new_token(TokenType::Gt, self.ch),
       b'{' => new_token(TokenType::Lbrace, self.ch),
       b'}' => new_token(TokenType::Rbrace, self.ch),
+      b'"' => {
+        let literal = self.read_string();
+        Token {
+          token_type: TokenType::String,
+          literal,
+        }
+      }
       0 => Token {
         token_type: TokenType::Eof,
         literal: "".to_string(),
@@ -106,6 +113,23 @@ impl Lexer {
     };
     self.read_char();
     tok
+  }
+
+  fn read_string(&mut self) -> String {
+    let position = self.position + 1;
+    loop {
+      self.read_char();
+      if self.ch == b'"' || self.ch == 0 {
+        break;
+      }
+    }
+    let mut str = "".to_string();
+    for (i, s) in self.input.chars().enumerate() {
+      if position <= i && i < self.position {
+        str.push(s)
+      }
+    }
+    str
   }
 
   fn is_letter(ch: u8) -> bool {
@@ -173,7 +197,7 @@ mod test {
   use super::*;
   #[test]
   fn test_next_token() {
-    let input = "
+    let input = r#"
       let five = 5;
       let ten = 10;
       let add = fn(x, y) {
@@ -192,7 +216,9 @@ mod test {
 
        10 == 10;
        10 != 9;
-       "
+       "foobar"
+       "foo bar"
+       "#
     .to_string();
 
     let tests = vec![
@@ -232,7 +258,57 @@ mod test {
       (TokenType::Ident, "ten".to_string()),
       (TokenType::Rparen, ")".to_string()),
       (TokenType::Semicolon, ";".to_string()),
-      //(TokenType::EOF, "".to_string()),
+      // !-/*5;
+      (TokenType::Bang, "!".to_string()),
+      (TokenType::Minus, "-".to_string()),
+      (TokenType::Slash, "/".to_string()),
+      (TokenType::Asterisk, "*".to_string()),
+      (TokenType::Int, "5".to_string()),
+      (TokenType::Semicolon, ";".to_string()),
+      //5 < 10 > 5;
+      (TokenType::Int, "5".to_string()),
+      (TokenType::Lt, "<".to_string()),
+      (TokenType::Int, "10".to_string()),
+      (TokenType::Gt, ">".to_string()),
+      (TokenType::Int, "5".to_string()),
+      (TokenType::Semicolon, ";".to_string()),
+      //if (5 < 10) {
+      //  return true;
+      //} else {
+      //  return false;
+      //}
+      (TokenType::If, "if".to_string()),
+      (TokenType::Lparen, "(".to_string()),
+      (TokenType::Int, "5".to_string()),
+      (TokenType::Lt, "<".to_string()),
+      (TokenType::Int, "10".to_string()),
+      (TokenType::Rparen, ")".to_string()),
+      (TokenType::Lbrace, "{".to_string()),
+      (TokenType::Return, "return".to_string()),
+      (TokenType::True, "true".to_string()),
+      (TokenType::Semicolon, ";".to_string()),
+      (TokenType::Rbrace, "}".to_string()),
+      (TokenType::Else, "else".to_string()),
+      (TokenType::Lbrace, "{".to_string()),
+      (TokenType::Return, "return".to_string()),
+      (TokenType::False, "false".to_string()),
+      (TokenType::Semicolon, ";".to_string()),
+      (TokenType::Rbrace, "}".to_string()),
+      //10 == 10;
+      (TokenType::Int, "10".to_string()),
+      (TokenType::Eq, "==".to_string()),
+      (TokenType::Int, "10".to_string()),
+      (TokenType::Semicolon, ";".to_string()),
+      //10 != 9;
+      (TokenType::Int, "10".to_string()),
+      (TokenType::NotEq, "!=".to_string()),
+      (TokenType::Int, "9".to_string()),
+      (TokenType::Semicolon, ";".to_string()),
+      //"foobar"
+      (TokenType::String, "foobar".to_string()),
+      //"foo bar"
+      (TokenType::String, "foo bar".to_string()),
+      (TokenType::Eof, "".to_string()),
     ];
     let mut l = Lexer::new(input);
     let mut succeed = true;

@@ -132,6 +132,7 @@ impl Parser {
             TokenType::Lparen => self.parse_grouped_expression(),
             TokenType::If => self.parse_if_expression(),
             TokenType::Function => self.parse_fn_expression(),
+            TokenType::String => self.parse_string_expression(),
             _ => {
                 println!("no predefined parse expression: {:?}", self.current_token);
                 None
@@ -172,6 +173,16 @@ impl Parser {
             TokenType::Int => Some(Expression::IntegerExpr(
                 self.current_token.literal.parse::<i64>().unwrap(), //unwrapしていいのか問題
             )),
+            _ => None,
+        }
+    }
+
+    fn parse_string_expression(&self) -> Option<Expression> {
+        match self.current_token.token_type {
+            TokenType::String => {
+                let s = self.current_token.literal.clone();
+                Some(Expression::StrExpr(s))
+            }
             _ => None,
         }
     }
@@ -512,6 +523,26 @@ mod test {
             _ => panic!(),
         }
     }
+
+    #[test]
+    fn test_string_literal_expression() {
+        let input = r#""hello world";"#;
+        let l = Lexer::new(input.to_string());
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&p);
+
+        match &program.statements[0] {
+            Statement::ExpressionStatement { expression } => match expression {
+                Expression::StrExpr(s) => {
+                    assert_eq!(s, "hello world");
+                }
+                _ => panic!(),
+            },
+            _ => panic!(),
+        }
+    }
+
     #[test]
     fn test_parsing_prefix_expression() {
         let prefix_tests = vec![("!5;", "!", 5), ("-15;", "-", 15)];
