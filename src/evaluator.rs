@@ -1,4 +1,4 @@
-use super::{Expression, Lexer, Object, Parser, Program, Statement, TokenType};
+use super::{BlockStatement, Expression, Lexer, Object, Parser, Program, Statement, TokenType};
 
 pub trait Eval {
   fn eval(&self) -> Option<Object>;
@@ -17,6 +17,12 @@ impl Eval for Vec<Statement> {
     //  return None;
 
     self[0].eval()
+  }
+}
+
+impl Eval for &BlockStatement {
+  fn eval(&self) -> Option<Object> {
+    self.statements.eval()
   }
 }
 
@@ -59,8 +65,37 @@ impl Eval for &Expression {
         let rt = right.as_ref().eval().unwrap();
         eval_infix_expression(operator, lt, rt)
       }
+      Expression::IfExp {
+        condition,
+        consequesnce,
+        alternative,
+      } => eval_if_expression(condition.as_ref(), consequesnce, alternative),
       _ => None,
     }
+  }
+}
+
+fn eval_if_expression(
+  condition: &Expression,
+  consequence: &BlockStatement,
+  alternative: &Option<BlockStatement>,
+) -> Option<Object> {
+  let condition = condition.eval();
+  if is_truthy(condition.unwrap()) {
+    return consequence.eval();
+  } else {
+    match alternative {
+      Some(s) => s.eval(),
+      _ => Some(Object::Null),
+    }
+  }
+}
+
+fn is_truthy(obj: Object) -> bool {
+  match obj {
+    Object::Null => false,
+    Object::BooleanObj(b) => b,
+    _ => true,
   }
 }
 
@@ -191,6 +226,37 @@ mod test {
     for tt in tests {
       let evaluated = test_eval(tt.0.to_string()).unwrap();
       assert!(test_boolean_object(&evaluated, tt.1))
+    }
+  }
+
+  #[test]
+  fn test_if_else_expressions() {
+    let tests = vec![
+      ("if (true) {10} ", 10),
+      ("if (false) {10} ", 9999), //null
+      ("if (1) {10}", 10),
+      ("if (1 < 2) {10}", 10),
+      ("if (1 > 2) {10}", 9999), //null
+      ("if (1 > 2) {10} else {20}", 20),
+      ("if (1 < 2) {10} else {20}", 10),
+    ];
+
+    for tt in tests {
+      let evaluated = test_eval(tt.0.to_string());
+      match evaluated {
+        Some(e) => match e {
+          Object::IntegerObj(i) => assert!(test_integer_object(&e, tt.1)),
+          _ => assert!(test_null_object(e)),
+        },
+        None => panic!(),
+      }
+    }
+  }
+
+  fn test_null_object(obj: Object) -> bool {
+    match obj {
+      Object::Null => true,
+      _ => false,
     }
   }
 
