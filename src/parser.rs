@@ -86,25 +86,28 @@ impl Parser {
         if !self.expect_peek(TokenType::Assign) {
             return None;
         }
-        while !self.current_token_is(TokenType::Semicolon) {
+
+        self.next_token();
+
+        let value = self.parse_expression(Precedence::Lowest).unwrap();
+
+        if self.peek_token_is(TokenType::Semicolon) {
             self.next_token()
         }
-        return Some(Statement::LetStatement {
-            identifier,
-            value: Expression::Default,
-        });
+
+        return Some(Statement::LetStatement { identifier, value });
     }
 
     fn parse_return_statement(&mut self) -> Option<Statement> {
         self.next_token();
 
-        while !self.current_token_is(TokenType::Semicolon) {
+        let return_value = self.parse_expression(Precedence::Lowest).unwrap();
+
+        if self.peek_token_is(TokenType::Semicolon) {
             self.next_token()
         }
 
-        return Some(Statement::ReturnStatement {
-            return_value: Expression::Default,
-        });
+        return Some(Statement::ReturnStatement { return_value });
     }
 
     fn parse_expression_statement(&mut self) -> Option<Statement> {
@@ -384,26 +387,30 @@ mod test {
 
     #[test]
     fn test_let_statements() {
-        let input = "
-        let x = 5;
-        let y = 10;
-        let  foobar = 838383;
-      "
-        .to_string();
+        fn test_fn<T>(input: &str, expected_identifier: &str, expected_value: T)
+        where
+            T: TestLiteral<T>,
+        {
+            let lexer = Lexer::new(String::from(input));
+            let mut parser = Parser::new(lexer);
 
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
+            let program = parser.parse_program();
+            check_parser_errors(&parser);
 
-        let program = parser.parse_program();
-        check_parser_errors(&parser);
+            assert_eq!(program.statements.len(), 1);
+            let stmt = &program.statements[0];
+            assert!(test_let_statement(stmt, &expected_identifier));
 
-        assert_eq!(program.statements.len(), 3);
-        let tests = vec!["x", "y", "foobar"];
-
-        for (i, tt) in tests.iter().enumerate() {
-            let statement = &program.statements[i];
-            assert!(test_let_statement(statement, tt));
+            match stmt {
+                Statement::LetStatement { identifier, value } => {
+                    assert!(test_literal_expression(&value, expected_value));
+                }
+                _ => panic!(),
+            }
         }
+        test_fn("let x = 5;", "x", 5);
+        test_fn("let y = true;", "y", true);
+        test_fn("let foobar = y;", "foobar", "y".to_string());
     }
 
     fn test_let_statement(s: &Statement, name: &str) -> bool {
@@ -867,6 +874,11 @@ mod test {
     impl TestLiteral<String> for String {
         fn test_literal(self, exp: &Expression) -> bool {
             test_identifier(exp, self)
+        }
+    }
+    impl TestLiteral<bool> for bool {
+        fn test_literal(self, exp: &Expression) -> bool {
+            test_boolean_literal(exp, self)
         }
     }
 
