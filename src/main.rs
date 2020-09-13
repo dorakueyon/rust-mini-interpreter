@@ -1,11 +1,14 @@
 use ast::{BlockStatement, Expression, Identifier, Program, Statement};
 use lexer::Lexer;
+use object::Object;
 use parser::{ParseError, Parser};
 use repl::Repl;
 use token::{Token, TokenType};
 
 mod ast;
+mod evaluator;
 mod lexer;
+mod object;
 mod parser;
 mod repl;
 mod token;
