@@ -47,7 +47,7 @@ pub enum TokenType {
   Comma,
   Semicolon,
 
-  Lparen,
+  Lparen, // (
   Rparen,
   Lbrace,
   Rbrace,

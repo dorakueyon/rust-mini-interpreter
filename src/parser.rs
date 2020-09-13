@@ -148,6 +148,10 @@ impl Parser {
                     self.next_token();
                     left = self.parse_infix_expression(left.unwrap());
                 }
+                TokenType::Lparen => {
+                    self.next_token();
+                    left = self.parse_call_expression(left.unwrap());
+                }
                 _ => return left,
             };
         }
@@ -196,6 +200,39 @@ impl Parser {
             operator,
             right,
         })
+    }
+
+    fn parse_call_expression(&mut self, function: Expression) -> Option<Expression> {
+        let arguments = self.parse_call_arguments();
+        Some(Expression::CallExp {
+            function: Box::new(function),
+            arguments,
+        })
+    }
+
+    fn parse_call_arguments(&mut self) -> Vec<Box<Expression>> {
+        let mut arguments: Vec<Box<Expression>> = Vec::new();
+        if self.peek_token_is(TokenType::Rparen) {
+            self.next_token();
+            return arguments;
+        }
+        self.next_token();
+        let exp = Box::new(self.parse_expression(Precedence::Lowest).unwrap());
+        arguments.push(exp);
+        dbg!(&arguments);
+
+        while self.peek_token_is(TokenType::Comma) {
+            self.next_token();
+            self.next_token();
+            let exp = Box::new(self.parse_expression(Precedence::Lowest).unwrap());
+            arguments.push(exp);
+        }
+
+        if !self.expect_peek(TokenType::Rparen) {
+            return vec![];
+        }
+
+        return arguments;
     }
 
     fn parse_boolean_expression(&mut self) -> Option<Expression> {
@@ -309,6 +346,7 @@ impl Parser {
             TokenType::Lt | TokenType::Gt => Precedence::LessGreater,
             TokenType::Plus | TokenType::Minus => Precedence::Sum,
             TokenType::Slash | TokenType::Asterisk => Precedence::Product,
+            TokenType::Lparen => Precedence::Call,
             _ => Precedence::Lowest,
         }
     }
@@ -594,6 +632,15 @@ mod test {
             ("2 / ( 5 + 5)", "(2 / (5 + 5))"),
             ("-( 5 + 5)", "(-(5 + 5))"),
             ("!(true  == true)", "(!(true == true))"),
+            ("a + add(b * c) + d", "((a + add((b * c))) + d)"),
+            (
+                "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+                "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+            ),
+            (
+                "add(a + b + c * d / f + g)",
+                "add((((a + b) + ((c * d) / f)) + g))",
+            ),
         ];
 
         for tt in tests.iter() {
@@ -656,7 +703,7 @@ mod test {
     }
 
     #[test]
-    fn test_if_else_ixpression() {
+    fn test_if_else_expression() {
         let input = "if ( x < y) { x } else { y }";
 
         let l = Lexer::new(input.to_string());
@@ -693,6 +740,45 @@ mod test {
                         }
                         None => panic!(),
                     }
+                }
+                _ => panic!(),
+            },
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn test_call_expression_parsing() {
+        let input = "add(1, 2 * 3, 4 + 5);";
+        let l = Lexer::new(input.to_string());
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        dbg!(&program);
+        //check_parser_errors(&p);
+
+        assert_eq!(program.statements.len(), 1);
+
+        match &program.statements[0] {
+            Statement::ExpressionStatement { expression } => match expression {
+                Expression::CallExp {
+                    function,
+                    arguments,
+                } => {
+                    assert!(test_identifier(function.as_ref(), "add".to_string()));
+                    assert_eq!(arguments.len(), 3);
+                    assert_eq!(format!("{}", arguments[0]), "1");
+                    assert!(test_infix_expression(
+                        arguments[1].as_ref(),
+                        2,
+                        &"*".to_string(),
+                        3
+                    ));
+                    assert!(test_infix_expression(
+                        arguments[2].as_ref(),
+                        4,
+                        &"+".to_string(),
+                        5
+                    ));
                 }
                 _ => panic!(),
             },
@@ -771,6 +857,11 @@ mod test {
     impl TestLiteral<Box<i64>> for Box<i64> {
         fn test_literal(self, exp: &Expression) -> bool {
             test_integer_literal(Box::new(&exp), self.as_ref())
+        }
+    }
+    impl TestLiteral<i64> for i64 {
+        fn test_literal(self, exp: &Expression) -> bool {
+            test_integer_literal(Box::new(exp), &self)
         }
     }
     impl TestLiteral<String> for String {

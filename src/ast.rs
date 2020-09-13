@@ -124,6 +124,24 @@ impl Display for Expression {
 
                 s
             }
+            Expression::CallExp {
+                function,
+                arguments,
+            } => {
+                let mut v: Vec<String> = Vec::new();
+                for a in arguments {
+                    v.push(format!("{}", a));
+                }
+                let mut s = String::new();
+                s.push_str(&format!("{}", function));
+                s.push_str("(");
+                s.push_str(&v.join(", "));
+                //for a in arguments {
+                //    s.push_str(&format!("{}", a));
+                //}
+                s.push_str(")");
+                s
+            }
             _ => "not defined".to_string(),
         };
 
@@ -156,6 +174,10 @@ pub enum Expression {
     FnExp {
         parameters: Vec<Identifier>,
         body: BlockStatement,
+    },
+    CallExp {
+        function: Box<Expression>,
+        arguments: Vec<Box<Expression>>,
     },
 }
 
