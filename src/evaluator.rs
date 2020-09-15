@@ -12,11 +12,23 @@ impl Eval for Program {
 
 impl Eval for Vec<Statement> {
   fn eval(&self) -> Option<Object> {
-    //for stmt in self {
-    //  //      return stmt.eval();
-    //  return None;
+    let mut result: Option<Object> = None;
 
-    self[0].eval()
+    for stmt in self {
+      result = stmt.eval();
+
+      match result {
+        Some(obj) => match obj {
+          Object::ReturnObj(bo) => {
+            let o = *bo;
+            result = Some(o);
+          }
+          _ => {}
+        },
+        None => {}
+      }
+    }
+    return result;
   }
 }
 
@@ -30,6 +42,10 @@ impl Eval for Statement {
   fn eval(&self) -> Option<Object> {
     match self {
       Statement::ExpressionStatement { expression } => return expression.eval(),
+      Statement::ReturnStatement { return_value } => {
+        let exp = return_value.eval().unwrap();
+        return Some(Object::ReturnObj(Box::new(exp)));
+      }
       _ => None,
     }
   }
@@ -253,6 +269,20 @@ mod test {
     }
   }
 
+  #[test]
+  fn test_return_statements() {
+    let tests = vec![
+      ("return 10;", 10),
+      ("return 10; 9;", 10),
+      ("return 2 * 5; 9;", 10),
+      ("9; return 2 * 5; 9;", 10),
+    ];
+    for tt in tests {
+      let evaluated = test_eval(tt.0.to_string()).unwrap();
+      assert!(test_integer_object(&evaluated, tt.1))
+    }
+  }
+
   fn test_null_object(obj: Object) -> bool {
     match obj {
       Object::Null => true,
@@ -275,6 +305,7 @@ mod test {
   }
 
   fn test_integer_object(obj: &Object, expected: i64) -> bool {
+    dbg!(obj);
     match obj {
       Object::IntegerObj(value) => {
         assert_eq!(value, &expected);
