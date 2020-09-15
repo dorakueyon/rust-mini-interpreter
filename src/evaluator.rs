@@ -6,22 +6,15 @@ pub trait Eval {
 
 impl Eval for Program {
   fn eval(&self) -> Option<Object> {
-    self.statements.eval()
-  }
-}
+    let mut result = None;
 
-impl Eval for Vec<Statement> {
-  fn eval(&self) -> Option<Object> {
-    let mut result: Option<Object> = None;
-
-    for stmt in self {
+    for stmt in self.statements.iter() {
       result = stmt.eval();
 
-      match result {
+      match stmt.eval() {
         Some(obj) => match obj {
           Object::ReturnObj(bo) => {
-            let o = *bo;
-            result = Some(o);
+            return Some(*bo);
           }
           _ => {}
         },
@@ -34,7 +27,20 @@ impl Eval for Vec<Statement> {
 
 impl Eval for &BlockStatement {
   fn eval(&self) -> Option<Object> {
-    self.statements.eval()
+    let mut result = None;
+
+    for stmt in self.statements.iter() {
+      result = stmt.eval();
+
+      match stmt.eval() {
+        Some(obj) => match obj {
+          Object::ReturnObj(bo) => return result,
+          _ => {}
+        },
+        None => {}
+      }
+    }
+    return result;
   }
 }
 
@@ -276,6 +282,15 @@ mod test {
       ("return 10; 9;", 10),
       ("return 2 * 5; 9;", 10),
       ("9; return 2 * 5; 9;", 10),
+      (
+        "if (10 > 1) {
+        if (10 > 1){
+          return 10;
+        }
+        return 1;
+      }",
+        10,
+      ),
     ];
     for tt in tests {
       let evaluated = test_eval(tt.0.to_string()).unwrap();
