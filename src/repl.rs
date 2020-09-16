@@ -1,4 +1,5 @@
-use super::{Eval, Lexer, ParseError, Parser, TokenType};
+use super::{Environment, Eval, Lexer, Object, ParseError, Parser, TokenType};
+use std::collections::HashMap;
 use std::io;
 use std::io::Write;
 
@@ -8,6 +9,7 @@ const PROMPT: &str = ">>";
 
 impl Repl {
   pub fn start() {
+    let mut env = Environment::new();
     loop {
       print!("{} ", PROMPT);
       io::stdout().flush().unwrap();
@@ -22,12 +24,10 @@ impl Repl {
             Repl::print_parse_errors(p.errors);
             continue;
           }
-          if let Some(evaluated) = program.eval() {
+          if let Some(evaluated) = program.eval(&mut env) {
             println!("{}", evaluated.inspect());
             io::stdout().flush().unwrap();
           }
-          //println!("{}", program);
-          //io::stdout().flush().unwrap();
         }
         Err(_) => break,
       }

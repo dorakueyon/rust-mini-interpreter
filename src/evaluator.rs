@@ -1,17 +1,19 @@
-use super::{BlockStatement, Expression, Lexer, Object, Parser, Program, Statement, TokenType};
+use super::{
+    BlockStatement, Environment, Expression, Lexer, Object, Parser, Program, Statement, TokenType,
+};
 
 pub trait Eval {
-    fn eval(&self) -> Option<Object>;
+    fn eval(&self, env: &mut Environment) -> Option<Object>;
 }
 
 impl Eval for Program {
-    fn eval(&self) -> Option<Object> {
+    fn eval(&self, env: &mut Environment) -> Option<Object> {
         let mut result = None;
 
         for stmt in self.statements.iter() {
-            result = stmt.eval();
+            result = stmt.eval(env);
 
-            match stmt.eval() {
+            match stmt.eval(env) {
                 Some(obj) => match obj {
                     Object::ReturnObj(bo) => {
                         return Some(*bo);
@@ -27,13 +29,13 @@ impl Eval for Program {
 }
 
 impl Eval for &BlockStatement {
-    fn eval(&self) -> Option<Object> {
+    fn eval(&self, env: &mut Environment) -> Option<Object> {
         let mut result = None;
 
         for stmt in self.statements.iter() {
-            result = stmt.eval();
+            result = stmt.eval(env);
 
-            match stmt.eval() {
+            match stmt.eval(env) {
                 Some(obj) => match obj {
                     Object::ReturnObj(bo) => return result,
                     Object::ErrorObj(_) => return result,
@@ -47,12 +49,20 @@ impl Eval for &BlockStatement {
 }
 
 impl Eval for Statement {
-    fn eval(&self) -> Option<Object> {
+    fn eval(&self, env: &mut Environment) -> Option<Object> {
         match self {
-            Statement::ExpressionStatement { expression } => return expression.eval(),
+            Statement::ExpressionStatement { expression } => return expression.eval(env),
             Statement::ReturnStatement { return_value } => {
-                let exp = return_value.eval().unwrap();
+                let exp = return_value.eval(env).unwrap();
                 return Some(Object::ReturnObj(Box::new(exp)));
+            }
+            Statement::LetStatement { identifier, value } => {
+                let val = value.eval(env);
+                if is_error(value.eval(env)) {
+                    return val;
+                }
+                env.set(identifier.value.clone(), val.unwrap());
+                None
             }
             _ => None,
         }
@@ -60,7 +70,7 @@ impl Eval for Statement {
 }
 
 impl Eval for &Expression {
-    fn eval(&self) -> Option<Object> {
+    fn eval(&self, env: &mut Environment) -> Option<Object> {
         match self {
             Expression::IntegerExpr(i) => {
                 return Some(Object::IntegerObj(i.clone()));
@@ -75,8 +85,8 @@ impl Eval for &Expression {
                 operator,
                 right,
             } => {
-                let exp = right.as_ref().eval();
-                if is_error(right.as_ref().eval()) {
+                let exp = right.as_ref().eval(env);
+                if is_error(right.as_ref().eval(env)) {
                     return exp;
                 }
                 eval_prefix_expression(operator, exp.unwrap())
@@ -87,12 +97,12 @@ impl Eval for &Expression {
                 operator,
                 right,
             } => {
-                let lt = left.as_ref().eval().unwrap();
-                if is_error(left.as_ref().eval()) {
+                let lt = left.as_ref().eval(env).unwrap();
+                if is_error(left.as_ref().eval(env)) {
                     return Some(lt);
                 }
-                let rt = right.as_ref().eval().unwrap();
-                if is_error(right.as_ref().eval()) {
+                let rt = right.as_ref().eval(env).unwrap();
+                if is_error(right.as_ref().eval(env)) {
                     return Some(rt);
                 }
                 eval_infix_expression(operator, lt, rt)
@@ -102,15 +112,24 @@ impl Eval for &Expression {
                 consequesnce,
                 alternative,
             } => {
-                println!("hoge");
-                let cd = condition.as_ref().eval();
-                if is_error(condition.as_ref().eval()) {
+                let cd = condition.as_ref().eval(env);
+                if is_error(condition.as_ref().eval(env)) {
                     return cd;
                 }
-                return eval_if_expression(condition.as_ref(), consequesnce, alternative);
+                return eval_if_expression(condition.as_ref(), consequesnce, alternative, env);
             }
+            Expression::IdentExpr(i) => return eval_identifier(i, env),
             _ => None,
         }
+    }
+}
+
+fn eval_identifier(i: &String, env: &mut Environment) -> Option<Object> {
+    match env.get(i) {
+        Some(o) => {
+            return Some(o);
+        }
+        None => return Some(Object::ErrorObj(format!("identifier not found: {}", i))),
     }
 }
 
@@ -118,13 +137,14 @@ fn eval_if_expression(
     condition: &Expression,
     consequence: &BlockStatement,
     alternative: &Option<BlockStatement>,
+    env: &mut Environment,
 ) -> Option<Object> {
-    let condition = condition.eval();
+    let condition = condition.eval(env);
     if is_truthy(condition.unwrap()) {
-        return consequence.eval();
+        return consequence.eval(env);
     } else {
         match alternative {
-            Some(s) => s.eval(),
+            Some(s) => s.eval(env),
             _ => Some(Object::Null),
         }
     }
@@ -355,6 +375,7 @@ mod test {
                 "if (10 > 1) { true + false; }",
                 "unknown operator: BOOLEAN + BOOLEAN",
             ),
+            ("foobar", "identifier not found: foobar"),
         ];
         for tt in tests {
             let evaluated = test_eval(tt.0.to_string());
@@ -362,6 +383,21 @@ mod test {
                 Object::ErrorObj(message) => assert_eq!(message, tt.1),
                 _ => panic!(),
             }
+        }
+    }
+
+    #[test]
+    fn test_let_statement() {
+        let tests = vec![
+            ("let a = 5; a;", 5),
+            ("let a = 5 * 5; a;", 25),
+            ("let a = 5; let b = a; b;", 5),
+            ("let a = 5; let b = a; let c = a + b + 5; c;", 15),
+        ];
+
+        for tt in tests {
+            let evaluated = test_eval(tt.0.to_string());
+            assert!(test_integer_object(&evaluated.unwrap(), tt.1));
         }
     }
 
@@ -376,8 +412,9 @@ mod test {
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
+        let mut env = Environment::new();
 
-        match program.eval() {
+        match program.eval(&mut env) {
             Some(s) => {
                 dbg!(&s);
                 Some(s)

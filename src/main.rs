@@ -1,7 +1,7 @@
 use ast::{BlockStatement, Expression, Identifier, Program, Statement};
 use evaluator::Eval;
 use lexer::Lexer;
-use object::Object;
+use object::{Environment, Object};
 use parser::{ParseError, Parser};
 use repl::Repl;
 use token::{Token, TokenType};
