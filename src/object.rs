@@ -1,10 +1,11 @@
-use super::{BlockStatement, Identifier};
+use super::{builtins, BlockStatement, Identifier};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
     store: HashMap<String, Object>,
     outer: HashMap<String, Object>,
+    builtins: HashMap<String, Object>,
 }
 
 impl Environment {
@@ -12,6 +13,7 @@ impl Environment {
         Self {
             store: HashMap::new(),
             outer: HashMap::new(),
+            builtins: builtins::new(),
         }
     }
     pub fn get(&self, name: &String) -> Option<Object> {
@@ -26,6 +28,13 @@ impl Environment {
 
     pub fn set(&mut self, name: String, val: Object) {
         self.store.insert(name, val);
+    }
+
+    pub fn get_builins(&self, name: &String) -> Option<Object> {
+        match self.builtins.get(name) {
+            Some(value) => Some(value.to_owned()),
+            None => None,
+        }
     }
 
     pub fn new_enclosed_environment(outer_env: &Environment) -> Environment {
@@ -47,6 +56,9 @@ pub enum Object {
         body: BlockStatement,
         env: Environment,
     },
+    BuilinObj {
+        func: fn(Vec<Object>) -> Object,
+    },
     ErrorObj(String),
 }
 
@@ -57,6 +69,7 @@ impl Object {
             Object::BooleanObj(b) => format!("{}", b),
             Object::ReturnObj(b) => format! {"{}", b.as_ref().inspect()},
             Object::StringObj(s) => s.clone(),
+            Object::ErrorObj(s) => s.clone(),
             Object::Null => "null".to_string(),
             _ => "".to_string(),
         }

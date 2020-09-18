@@ -160,6 +160,7 @@ fn apply_function(func: Object, args: Vec<Object>) -> Option<Object> {
             let evaluated = b.eval(&mut extended_env);
             return unwrap_return_value(evaluated.unwrap());
         }
+        Object::BuilinObj { func } => return Some(func(args)),
         _ => Some(Object::ErrorObj(format!(
             "not a function: {}",
             func.type_name()
@@ -214,7 +215,10 @@ fn eval_identifier(i: &String, env: &mut Environment) -> Option<Object> {
         Some(o) => {
             return Some(o);
         }
-        None => return Some(Object::ErrorObj(format!("identifier not found: {}", i))),
+        None => match env.get_builins(i) {
+            Some(o) => Some(o),
+            None => Some(Object::ErrorObj(format!("identifier not found: {}", i))),
+        },
     }
 }
 
@@ -482,6 +486,8 @@ mod test {
             ),
             ("foobar", "identifier not found: foobar"),
             (r#""Hello" - "World""#, "unknown operator: STRING - STRING"),
+            ("len(1)", "argument to 'len' not supported, got INTEGER"),
+            (r#"len("1", "2")"#, "wrong number of arguments. got=2, want=1"),
         ];
         for tt in tests {
             let evaluated = test_eval(tt.0.to_string());
@@ -602,6 +608,27 @@ addTwo(2);
                 _ => panic!(),
             },
             None => panic!(),
+        }
+    }
+
+    #[test]
+    fn test_buildin_functions() {
+        let tests = vec![
+            (r#"len("")"#, 0),
+            (r#"len("four")"#, 4),
+            (r#"len("hello world")"#, 11),
+        ];
+        for tt in tests {
+            let evaluated = test_eval(tt.0.to_string());
+
+            dbg!(&evaluated);
+            match evaluated {
+                Some(o) => match o {
+                    Object::IntegerObj(i) => assert!(test_integer_object(&o, tt.1)),
+                    _ => panic!(),
+                },
+                None => panic!(),
+            }
         }
     }
 

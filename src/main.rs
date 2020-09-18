@@ -7,6 +7,7 @@ use repl::Repl;
 use token::{Token, TokenType};
 
 mod ast;
+mod builtins;
 mod evaluator;
 mod lexer;
 mod object;
