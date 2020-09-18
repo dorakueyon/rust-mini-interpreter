@@ -233,7 +233,6 @@ impl Parser {
         self.next_token();
         let exp = Box::new(self.parse_expression(Precedence::Lowest).unwrap());
         arguments.push(exp);
-        dbg!(&arguments);
 
         while self.peek_token_is(TokenType::Comma) {
             self.next_token();
