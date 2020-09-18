@@ -1,5 +1,6 @@
 use super::{
-    BlockStatement, Environment, Expression, Lexer, Object, Parser, Program, Statement, TokenType,
+    BlockStatement, Environment, Expression, Identifier, Lexer, Object, Parser, Program, Statement,
+    TokenType,
 };
 
 pub trait Eval {
@@ -119,9 +120,92 @@ impl Eval for &Expression {
                 return eval_if_expression(condition.as_ref(), consequesnce, alternative, env);
             }
             Expression::IdentExpr(i) => return eval_identifier(i, env),
+            Expression::FnExp { parameters, body } => {
+                return Some(Object::FunctionObj {
+                    parameters: parameters.clone(),
+                    body: body.clone(),
+                    env: env.clone(),
+                });
+            }
+            Expression::CallExp {
+                function,
+                arguments,
+            } => {
+                let function = function.as_ref();
+                let func = function.eval(env);
+                if is_error(function.eval(env)) {
+                    return func;
+                }
+                let args = eval_expressions(arguments, env);
+                if args.len() == 1 && is_error(Some(args[0].clone())) {
+                    return Some(args[0].clone());
+                }
+                return apply_function(func.unwrap(), args);
+            }
             _ => None,
         }
     }
+}
+
+fn apply_function(func: Object, args: Vec<Object>) -> Option<Object> {
+    match func {
+        Object::FunctionObj {
+            parameters,
+            body,
+            env,
+        } => {
+            let mut extended_env = extend_function_env(&env, &parameters, &args);
+            let b = &body;
+            let evaluated = b.eval(&mut extended_env);
+            return unwrap_return_value(evaluated.unwrap());
+        }
+        _ => Some(Object::ErrorObj(format!(
+            "not a function: {}",
+            func.type_name()
+        ))),
+    };
+    None
+}
+
+fn unwrap_return_value(obj: Object) -> Option<Object> {
+    match obj {
+        Object::ReturnObj(bo) => {
+            return Some(*bo);
+        }
+        _ => Some(obj),
+    }
+}
+
+fn extend_function_env(
+    env: &Environment,
+    params: &Vec<Identifier>,
+    args: &Vec<Object>,
+) -> Environment {
+    let mut env = Environment::new_enclosed_environment(env);
+    for (i, param) in params.iter().enumerate() {
+        env.set(param.value.clone(), args[i].clone());
+    }
+
+    env
+}
+
+fn eval_expressions(exps: &Vec<Box<Expression>>, env: &mut Environment) -> Vec<Object> {
+    let mut result: Vec<Object> = Vec::new();
+
+    for e in exps {
+        let evaluated = e.as_ref().eval(env);
+        if is_error(evaluated.clone()) {
+            if let Some(ob) = evaluated {
+                return vec![ob];
+            }
+        }
+        match evaluated {
+            Some(o) => result.push(o),
+            None => (),
+        }
+    }
+
+    result
 }
 
 fn eval_identifier(i: &String, env: &mut Environment) -> Option<Object> {
@@ -408,6 +492,58 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_function_object() {
+        let input = "fn(x) { x + 2; }";
+        let evaluated = test_eval(input.to_string());
+        match evaluated {
+            Some(o) => match o {
+                Object::FunctionObj {
+                    parameters,
+                    body,
+                    env,
+                } => {
+                    assert_eq!(parameters.len(), 1);
+                    assert_eq!(parameters[0].value, "x");
+                    assert_eq!(format!("{}", body), "(x + 2)");
+                }
+                _ => panic!(),
+            },
+            None => panic!(),
+        }
+    }
+
+    #[test]
+    fn test_function_application() {
+        let tests = vec![
+            ("let identity = fn(x) { x; }; identity(5);", 5),
+            ("let identity = fn(x) { return x; }; identity(5);", 5),
+            ("let double = fn(x) { x * 2; }; double(5);", 10),
+            ("let add = fn(x, y) { x + y; }; add(5, 5);", 10),
+            ("let add = fn(x, y) { x + y; }; add(5 + 5, 10);", 20),
+            ("let add = fn(x, y) { x + y; }; add(5 + 5, add(6,7));", 23),
+            ("fn(x) {x;} (5)", 5),
+        ];
+
+        for tt in tests {
+            let evaluated = test_eval(tt.0.to_string());
+            assert!(test_integer_object(&evaluated.unwrap(), tt.1))
+        }
+    }
+
+    #[test]
+    fn test_closures() {
+        let input = "
+let newAdder = fn(x) {
+fn(y) { x + y };
+};
+let addTwo = newAdder(2);
+addTwo(2);
+        ";
+        let evaluated = test_eval(input.to_string());
+        assert!(test_integer_object(&evaluated.unwrap(), 4));
+    }
+
     fn test_eval(input: String) -> Option<Object> {
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
@@ -415,16 +551,12 @@ mod test {
         let mut env = Environment::new();
 
         match program.eval(&mut env) {
-            Some(s) => {
-                dbg!(&s);
-                Some(s)
-            }
+            Some(s) => Some(s),
             _ => None,
         }
     }
 
     fn test_integer_object(obj: &Object, expected: i64) -> bool {
-        dbg!(obj);
         match obj {
             Object::IntegerObj(value) => {
                 assert_eq!(value, &expected);

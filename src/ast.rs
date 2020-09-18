@@ -1,7 +1,7 @@
 use super::TokenType;
 use std::fmt::{Display, Formatter, Result as FormatterResult};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     LetStatement {
         identifier: Identifier,
@@ -15,7 +15,7 @@ pub enum Statement {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct BlockStatement {
     pub statements: Vec<Statement>,
 }
@@ -150,7 +150,7 @@ impl Display for Expression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Default,
     IntegerExpr(i64),
@@ -183,7 +183,7 @@ pub enum Expression {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Identifier {
     pub token: TokenType,
     pub value: String,
