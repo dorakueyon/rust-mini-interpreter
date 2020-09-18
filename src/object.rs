@@ -15,7 +15,6 @@ impl Environment {
         }
     }
     pub fn get(&self, name: &String) -> Option<Object> {
-        dbg!(&self.outer);
         match self.store.get(name) {
             Some(value) => Some(value.clone()),
             None => match self.outer.get(name) {
@@ -41,6 +40,7 @@ pub enum Object {
     Null,
     IntegerObj(i64),
     BooleanObj(bool),
+    StringObj(String),
     ReturnObj(Box<Object>),
     FunctionObj {
         parameters: Vec<Identifier>,
@@ -56,6 +56,7 @@ impl Object {
             Object::IntegerObj(i) => format!("{}", i),
             Object::BooleanObj(b) => format!("{}", b),
             Object::ReturnObj(b) => format! {"{}", b.as_ref().inspect()},
+            Object::StringObj(s) => s.clone(),
             Object::Null => "null".to_string(),
             _ => "".to_string(),
         }

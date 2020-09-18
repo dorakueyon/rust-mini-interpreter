@@ -81,6 +81,7 @@ impl Eval for &Expression {
                 TokenType::False => Some(Object::BooleanObj(false)),
                 _ => None,
             },
+            Expression::StrExpr(s) => Some(Object::StringObj(s.clone())),
             Expression::PrefixExp {
                 token,
                 operator,
@@ -261,12 +262,22 @@ fn eval_infix_expression(operator: &str, left: Object, right: Object) -> Option<
     if operator == "!=" {
         return Some(Object::BooleanObj(left != right));
     }
-    match left {
+    match &left {
         Object::IntegerObj(l) => match right {
-            Object::IntegerObj(r) => eval_integer_infix_expression(operator, l, r),
+            Object::IntegerObj(r) => eval_integer_infix_expression(operator, l, &r),
             _ => Some(Object::ErrorObj(format!(
-                "type mismatch: {} + {}",
+                "type mismatch: {} {} {}",
+                &left.type_name(),
+                &operator,
+                &right.type_name()
+            ))),
+        },
+        Object::StringObj(l) => match right {
+            Object::StringObj(r) => eval_string_infix_expression(operator, l, &r),
+            _ => Some(Object::ErrorObj(format!(
+                "type mismatch: {} {} {}",
                 left.type_name(),
+                operator,
                 right.type_name()
             ))),
         },
@@ -293,7 +304,17 @@ fn eval_bang_operator_expression(right: Object) -> Object {
     }
 }
 
-fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Option<Object> {
+fn eval_string_infix_expression(operator: &str, left: &String, right: &String) -> Option<Object> {
+    match operator {
+        "+" => Some(Object::StringObj(format!("{}{}", left, right))),
+        _ => Some(Object::ErrorObj(format!(
+            "unknown operator: STRING {} STRING",
+            operator
+        ))),
+    }
+}
+
+fn eval_integer_infix_expression(operator: &str, left: &i64, right: &i64) -> Option<Object> {
     match operator {
         "+" => Some(Object::IntegerObj(left + right)),
         "-" => Some(Object::IntegerObj(left - right)),
@@ -460,6 +481,7 @@ mod test {
                 "unknown operator: BOOLEAN + BOOLEAN",
             ),
             ("foobar", "identifier not found: foobar"),
+            (r#""Hello" - "World""#, "unknown operator: STRING - STRING"),
         ];
         for tt in tests {
             let evaluated = test_eval(tt.0.to_string());
@@ -553,6 +575,33 @@ addTwo(2);
         match program.eval(&mut env) {
             Some(s) => Some(s),
             _ => None,
+        }
+    }
+
+    #[test]
+    fn test_string_literal() {
+        let input = r#""Hello World!""#;
+
+        let evaluated = test_eval(input.to_string());
+        match evaluated {
+            Some(o) => match o {
+                Object::StringObj(s) => assert_eq!(s, "Hello World!"),
+                _ => panic!(),
+            },
+            None => panic!(),
+        }
+    }
+
+    #[test]
+    fn test_string_concatenation() {
+        let input = r#""Hello" + " " +  "World!""#;
+        let evaluated = test_eval(input.to_string());
+        match evaluated {
+            Some(o) => match o {
+                Object::StringObj(s) => assert_eq!(s, "Hello World!"),
+                _ => panic!(),
+            },
+            None => panic!(),
         }
     }
 
