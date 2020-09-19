@@ -9,6 +9,7 @@ pub fn new() -> BTreeMap<String, Object> {
   builtin_functions.insert(String::from("last"), Object::BuilinObj { func: last });
   builtin_functions.insert(String::from("rest"), Object::BuilinObj { func: rest });
   builtin_functions.insert(String::from("push"), Object::BuilinObj { func: push });
+  builtin_functions.insert(String::from("puts"), Object::BuilinObj { func: puts });
 
   builtin_functions
 }
@@ -108,4 +109,14 @@ fn push(args: Vec<Object>) -> Object {
       args[0].type_name()
     )),
   }
+}
+
+fn puts(args: Vec<Object>) -> Object {
+  if args.len() != 1 {
+    return Object::ErrorObj(format!(
+      "wrong number of arguments. got={}, want=1",
+      args.len()
+    ));
+  }
+  Object::StringObj(args[0].inspect())
 }
