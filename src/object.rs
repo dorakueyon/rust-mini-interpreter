@@ -70,6 +70,19 @@ impl Object {
             Object::BooleanObj(b) => format!("{}", b),
             Object::ReturnObj(b) => format! {"{}", b.as_ref().inspect()},
             Object::StringObj(s) => s.clone(),
+            Object::ArrayObj(v) => {
+                let mut elms = Vec::new();
+
+                for elm in v {
+                    elms.push(format!("{}", elm.inspect()))
+                }
+
+                let mut s = String::new();
+                s.push('[');
+                s.push_str(&elms.join(", "));
+                s.push(']');
+                s
+            }
             Object::ErrorObj(s) => s.clone(),
             Object::Null => "null".to_string(),
             _ => "".to_string(),

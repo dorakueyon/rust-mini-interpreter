@@ -534,7 +534,32 @@ mod test {
                 r#"len("1", "2")"#,
                 "wrong number of arguments. got=2, want=1",
             ),
+            (
+                r#"first("1", "2")"#,
+                "wrong number of arguments. got=2, want=1",
+            ),
+            (
+                r#"first(1)"#,
+                "argument to 'first' must be ARRAY, got INTEGER",
+            ),
+            (
+                r#"last("1", "2")"#,
+                "wrong number of arguments. got=2, want=1",
+            ),
+            (
+                r#"last(1)"#,
+                "argument to 'last' must be ARRAY, got INTEGER",
+            ),
+            (
+                r#"push([1, 2, 3], [1, 2], 3)"#,
+                "wrong number of arguments. got=3, want=2",
+            ),
+            (
+                r#"push(1, 2)"#,
+                "argument to 'push' must be ARRAY, got INTEGER",
+            ),
         ];
+
         for tt in tests {
             let evaluated = test_eval(tt.0.to_string());
             match evaluated.unwrap() {
@@ -663,6 +688,10 @@ addTwo(2);
             (r#"len("")"#, 0),
             (r#"len("four")"#, 4),
             (r#"len("hello world")"#, 11),
+            (r#"len([2, 2, 2])"#, 3),
+            (r#"len([])"#, 0),
+            (r#"first([1, 2, 3])"#, 1),
+            (r#"last([1, 2, 3])"#, 3),
         ];
         for tt in tests {
             let evaluated = test_eval(tt.0.to_string());
@@ -675,6 +704,54 @@ addTwo(2);
                 },
                 None => panic!(),
             }
+        }
+
+        let input = String::from("rest([1, 2, 3])");
+        let evaluated = test_eval(input);
+
+        match evaluated {
+            Some(o) => match o {
+                Object::ArrayObj(v) => {
+                    assert_eq!(v.len(), 2);
+                    assert!(test_integer_object(&v[0], 2));
+                    assert!(test_integer_object(&v[1], 3));
+                }
+                _ => panic!(),
+            },
+            None => panic!(),
+        }
+
+        let input = String::from("rest([])");
+        let evaluated = test_eval(input);
+
+        match evaluated {
+            Some(o) => match o {
+                Object::Null => {}
+                _ => panic!(),
+            },
+            None => panic!(),
+        }
+
+        let input = String::from(
+            "
+        let a = [1, 2, 3];
+        push(a, 5);
+        ",
+        );
+        let evaluated = test_eval(input);
+
+        match evaluated {
+            Some(o) => match o {
+                Object::ArrayObj(v) => {
+                    assert_eq!(v.len(), 4);
+                    assert!(test_integer_object(&v[0], 1));
+                    assert!(test_integer_object(&v[1], 2));
+                    assert!(test_integer_object(&v[2], 3));
+                    assert!(test_integer_object(&v[3], 5));
+                }
+                _ => panic!(),
+            },
+            None => panic!(),
         }
     }
 
