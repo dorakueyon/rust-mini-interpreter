@@ -1,7 +1,9 @@
 use super::TokenType;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result as FormatterResult};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Ord, PartialOrd, Eq)]
 pub enum Statement {
     LetStatement {
         identifier: Identifier,
@@ -15,7 +17,7 @@ pub enum Statement {
     },
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Ord, PartialOrd, Eq)]
 pub struct BlockStatement {
     pub statements: Vec<Statement>,
 }
@@ -170,7 +172,7 @@ impl Display for Expression {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Ord, PartialOrd, Eq)]
 pub enum Expression {
     Default,
     IntegerExpr(i64),
@@ -206,9 +208,10 @@ pub enum Expression {
         left: Box<Expression>,
         index: Box<Expression>,
     },
+    HashExp(BTreeMap<Box<Expression>, Box<Expression>>),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Ord, PartialOrd, Eq)]
 pub struct Identifier {
     pub token: TokenType,
     pub value: String,

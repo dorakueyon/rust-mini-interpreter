@@ -1,18 +1,18 @@
 use super::{builtins, BlockStatement, Identifier};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub struct Environment {
-    store: HashMap<String, Object>,
-    outer: HashMap<String, Object>,
-    builtins: HashMap<String, Object>,
+    store: BTreeMap<String, Object>,
+    outer: BTreeMap<String, Object>,
+    builtins: BTreeMap<String, Object>,
 }
 
 impl Environment {
     pub fn new() -> Self {
         Self {
-            store: HashMap::new(),
-            outer: HashMap::new(),
+            store: BTreeMap::new(),
+            outer: BTreeMap::new(),
             builtins: builtins::new(),
         }
     }
@@ -44,7 +44,7 @@ impl Environment {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq, Ord, PartialOrd)]
 pub enum Object {
     Null,
     IntegerObj(i64),
@@ -60,7 +60,14 @@ pub enum Object {
         func: fn(Vec<Object>) -> Object,
     },
     ArrayObj(Vec<Object>),
+    HashObj(BTreeMap<Object, HashPair>),
     ErrorObj(String),
+}
+
+#[derive(Debug, PartialEq, Clone, Eq, Ord, PartialOrd)]
+pub struct HashPair {
+    pub key: Object,
+    pub value: Object,
 }
 
 impl Object {
@@ -68,19 +75,34 @@ impl Object {
         match self {
             Object::IntegerObj(i) => format!("{}", i),
             Object::BooleanObj(b) => format!("{}", b),
-            Object::ReturnObj(b) => format! {"{}", b.as_ref().inspect()},
+            Object::ReturnObj(b) => b.as_ref().inspect(),
             Object::StringObj(s) => s.clone(),
             Object::ArrayObj(v) => {
                 let mut elms = Vec::new();
 
                 for elm in v {
-                    elms.push(format!("{}", elm.inspect()))
+                    elms.push(elm.inspect());
                 }
 
                 let mut s = String::new();
                 s.push('[');
                 s.push_str(&elms.join(", "));
                 s.push(']');
+                s
+            }
+            Object::HashObj(pair) => {
+                let mut pairs = Vec::new();
+                for (key, hp) in pair {
+                    let mut t = String::new();
+                    t.push_str(&key.inspect());
+                    t.push_str(": ");
+                    t.push_str(&hp.value.inspect());
+                    pairs.push(t);
+                }
+                let mut s = String::new();
+                s.push('{');
+                s.push_str(&pairs.join(", "));
+                s.push('}');
                 s
             }
             Object::ErrorObj(s) => s.clone(),

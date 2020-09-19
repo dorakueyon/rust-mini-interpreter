@@ -1,4 +1,5 @@
 use super::{BlockStatement, Expression, Identifier, Lexer, Program, Statement, Token, TokenType};
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter, Result as FormatterResult};
 
@@ -135,6 +136,7 @@ impl Parser {
             TokenType::Function => self.parse_fn_expression(),
             TokenType::String => self.parse_string_expression(),
             TokenType::Lbracket => self.parse_array_expression(),
+            TokenType::Lbrace => self.parse_hash_literal_expression(),
             _ => {
                 println!("no predefined parse expression: {:?}", self.current_token);
                 None
@@ -167,6 +169,33 @@ impl Parser {
         }
 
         left
+    }
+
+    fn parse_hash_literal_expression(&mut self) -> Option<Expression> {
+        let mut tree = BTreeMap::new();
+
+        while !self.peek_token_is(TokenType::Rbrace) {
+            self.next_token();
+            let key = self.parse_expression(Precedence::Lowest).unwrap();
+
+            if !self.expect_peek(TokenType::Colon) {
+                return None;
+            }
+            self.next_token();
+            let value = self.parse_expression(Precedence::Lowest).unwrap();
+
+            tree.insert(Box::new(key), Box::new(value));
+
+            if !self.peek_token_is(TokenType::Rbrace) && !self.expect_peek(TokenType::Comma) {
+                return None;
+            }
+        }
+
+        if !self.expect_peek(TokenType::Rbrace) {
+            return None;
+        }
+
+        Some(Expression::HashExp(tree))
     }
 
     fn parse_index_expression(&mut self, left: Expression) -> Option<Expression> {
@@ -984,6 +1013,61 @@ mod test {
                     assert!(test_identifier(left, String::from("myArray")));
                     assert!(test_infix_expression(index, 1, &String::from("+"), 1))
                 }
+                _ => panic!(),
+            },
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn test_parsing_hash_literal_string_keys() {
+        let input = String::from(r#"{"one": 1, "two": 2, "three": 3}"#);
+
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&p);
+
+        assert_eq!(program.statements.len(), 1);
+
+        match &program.statements[0] {
+            Statement::ExpressionStatement { expression } => match expression {
+                Expression::HashExp(tree) => {
+                    assert_eq!(tree.len(), 3);
+                    let expected: Vec<(Box<Expression>, i64)> = vec![
+                        (Box::new(Expression::StrExpr(String::from("one"))), 1),
+                        (Box::new(Expression::StrExpr(String::from("two"))), 2),
+                        (Box::new(Expression::StrExpr(String::from("three"))), 3),
+                    ];
+                    for (key, expected_value) in expected {
+                        let value = tree.get(&key);
+                        match value {
+                            Some(e) => {
+                                let e = e.as_ref();
+                                assert!(test_integer_literal(Box::new(e), &expected_value))
+                            }
+                            None => panic!(),
+                        }
+                    }
+                }
+                _ => panic!(),
+            },
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn test_parsing_empty_hash_literal() {
+        let input = String::from("{}");
+
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&p);
+
+        match &program.statements[0] {
+            Statement::ExpressionStatement { expression } => match expression {
+                Expression::HashExp(tree) => assert_eq!(tree.len(), 0),
                 _ => panic!(),
             },
             _ => panic!(),

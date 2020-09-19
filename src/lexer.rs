@@ -82,6 +82,7 @@ impl Lexer {
       b'}' => new_token(TokenType::Rbrace, self.ch),
       b'[' => new_token(TokenType::Lbracket, self.ch),
       b']' => new_token(TokenType::Rbracket, self.ch),
+      b':' => new_token(TokenType::Colon, self.ch),
       b'"' => {
         let literal = self.read_string();
         Token {
@@ -221,6 +222,7 @@ mod test {
        "foobar"
        "foo bar"
        [1, 2, 3];
+       {"foo": "bar"}
        "#
     .to_string();
 
@@ -320,6 +322,12 @@ mod test {
       (TokenType::Int, "3".to_string()),
       (TokenType::Rbracket, "]".to_string()),
       (TokenType::Semicolon, ";".to_string()),
+      // {"foo": "bar"}
+      (TokenType::Lbrace, "{".to_string()),
+      (TokenType::String, "foo".to_string()),
+      (TokenType::Colon, ":".to_string()),
+      (TokenType::String, "bar".to_string()),
+      (TokenType::Rbrace, "}".to_string()),
       // EOF
       (TokenType::Eof, "".to_string()),
     ];

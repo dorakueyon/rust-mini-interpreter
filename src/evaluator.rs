@@ -1,7 +1,9 @@
 use super::{
-    BlockStatement, Environment, Expression, Identifier, Lexer, Object, Parser, Program, Statement,
-    TokenType,
+    BlockStatement, Environment, Expression, HashPair, Identifier, Lexer, Object, Parser, Program,
+    Statement, TokenType,
 };
+
+use std::collections::BTreeMap;
 
 pub trait Eval {
     fn eval(&self, env: &mut Environment) -> Option<Object>;
@@ -137,6 +139,7 @@ impl Eval for &Expression {
                 if is_error(&func) {
                     return func;
                 }
+
                 let args = eval_expressions(arguments, env);
                 if args.len() == 1 && is_error(&Some(args[0].clone())) {
                     return Some(args[0].clone());
@@ -161,9 +164,38 @@ impl Eval for &Expression {
                 }
                 return eval_index_expression(l.unwrap(), ix.unwrap());
             }
+            Expression::HashExp(pair) => return eval_hash_expression(pair, env),
             _ => None,
         }
     }
+}
+
+fn eval_hash_expression(
+    node: &BTreeMap<Box<Expression>, Box<Expression>>,
+    env: &mut Environment,
+) -> Option<Object> {
+    let mut pair: BTreeMap<Object, HashPair> = BTreeMap::new();
+    for (k, v) in node {
+        let key = k.as_ref().eval(env);
+        if is_error(&key) {
+            return key.clone();
+        }
+        let value = v.as_ref().eval(env);
+        if is_error(&value) {
+            return value;
+        }
+
+        let key = key.unwrap();
+        let value = value.unwrap();
+
+        let hp = HashPair {
+            key: key.clone(),
+            value,
+        };
+
+        pair.insert(key, hp);
+    }
+    Some(Object::HashObj(pair))
 }
 
 fn eval_index_expression(left: Object, index: Object) -> Option<Object> {
@@ -178,6 +210,12 @@ fn eval_index_expression(left: Object, index: Object) -> Option<Object> {
             }
             _ => Some(err_obj),
         },
+        Object::HashObj(left) => {
+            if let Some(pair) = left.get(&index) {
+                return Some(pair.value.clone());
+            }
+            return Some(Object::Null);
+        }
         _ => Some(err_obj),
     }
 }
@@ -809,6 +847,55 @@ addTwo(2);
             match evaluated {
                 Some(o) => match o {
                     Object::Null => {}
+                    _ => panic!(),
+                },
+                None => panic!(),
+            }
+        }
+    }
+
+    #[test]
+    fn test_hash_literals() {
+        let input = r#"
+        let two = "two";
+        {
+            "one": 10 - 9,
+            two: 1 + 1,
+            "thr" + "ee" : 6/2,
+            4: 4,
+            true: 5,
+            false: 6
+        }
+        "#;
+
+        let evaluated = test_eval(input.to_string());
+        match &evaluated {
+            Some(o) => match &o {
+                Object::HashObj(pair) => {
+                    println!("========================");
+                    assert_eq!(pair.len(), 6);
+                }
+                _ => panic!(),
+            },
+            None => panic!(),
+        }
+    }
+
+    #[test]
+    fn test_hash_index_expression() {
+        let tests = vec![
+            (r#"{"foo": 5}["foo"]"#, 5),
+            (r#"let key = "foo"; {"foo": 5}[key]"#, 5),
+            (r#"{5: 5}[5]"#, 5),
+            (r#"{true: 5}[true]"#, 5),
+            (r#"{false: 5}[false]"#, 5),
+        ];
+
+        for tt in tests {
+            let evaluated = test_eval(tt.0.to_string());
+            match &evaluated {
+                Some(o) => match o {
+                    Object::IntegerObj(int) => assert!(test_integer_object(o, tt.1)),
                     _ => panic!(),
                 },
                 None => panic!(),

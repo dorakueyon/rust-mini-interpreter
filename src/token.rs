@@ -22,7 +22,7 @@ impl Token {
   }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, Ord, PartialOrd, Eq)]
 pub enum TokenType {
   Illigal,
   Eof,
@@ -46,6 +46,7 @@ pub enum TokenType {
 
   Comma,
   Semicolon,
+  Colon,
 
   Lparen, // (
   Rparen,

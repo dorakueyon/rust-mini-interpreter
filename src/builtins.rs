@@ -1,8 +1,8 @@
 use super::Object;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
-pub fn new() -> HashMap<String, Object> {
-  let mut builtin_functions = HashMap::new();
+pub fn new() -> BTreeMap<String, Object> {
+  let mut builtin_functions = BTreeMap::new();
 
   builtin_functions.insert(String::from("len"), Object::BuilinObj { func: len });
   builtin_functions.insert(String::from("first"), Object::BuilinObj { func: first });
