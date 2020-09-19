@@ -143,6 +143,26 @@ impl Display for Expression {
                 s.push_str(")");
                 s
             }
+            Expression::ArrayExp(elements) => {
+                let mut s = String::new();
+                s.push('[');
+                let mut els = Vec::new();
+                for el in elements {
+                    els.push(format!("{}", el))
+                }
+                s.push_str(&els.join(", "));
+                s.push(']');
+                s
+            }
+            Expression::IndexExp { left, index } => {
+                let mut s = String::new();
+                s.push('(');
+                s.push_str(&format!("{}", left));
+                s.push('[');
+                s.push_str(&format!("{}", index));
+                s.push_str("])");
+                s
+            }
             _ => "not defined".to_string(),
         };
 
@@ -180,6 +200,11 @@ pub enum Expression {
     CallExp {
         function: Box<Expression>,
         arguments: Vec<Box<Expression>>,
+    },
+    ArrayExp(Vec<Box<Expression>>),
+    IndexExp {
+        left: Box<Expression>,
+        index: Box<Expression>,
     },
 }
 

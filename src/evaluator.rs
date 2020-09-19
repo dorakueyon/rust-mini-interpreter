@@ -59,7 +59,7 @@ impl Eval for Statement {
             }
             Statement::LetStatement { identifier, value } => {
                 let val = value.eval(env);
-                if is_error(value.eval(env)) {
+                if is_error(&val) {
                     return val;
                 }
                 env.set(identifier.value.clone(), val.unwrap());
@@ -87,11 +87,11 @@ impl Eval for &Expression {
                 operator,
                 right,
             } => {
-                let exp = right.as_ref().eval(env);
-                if is_error(right.as_ref().eval(env)) {
-                    return exp;
+                let rt = right.as_ref().eval(env);
+                if is_error(&rt) {
+                    return rt;
                 }
-                eval_prefix_expression(operator, exp.unwrap())
+                eval_prefix_expression(operator, rt.unwrap())
             }
             Expression::InfixExp {
                 token,
@@ -99,15 +99,15 @@ impl Eval for &Expression {
                 operator,
                 right,
             } => {
-                let lt = left.as_ref().eval(env).unwrap();
-                if is_error(left.as_ref().eval(env)) {
-                    return Some(lt);
+                let lt = left.as_ref().eval(env);
+                if is_error(&lt) {
+                    return lt;
                 }
-                let rt = right.as_ref().eval(env).unwrap();
-                if is_error(right.as_ref().eval(env)) {
-                    return Some(rt);
+                let rt = right.as_ref().eval(env);
+                if is_error(&rt) {
+                    return rt;
                 }
-                eval_infix_expression(operator, lt, rt)
+                eval_infix_expression(operator, lt.unwrap(), rt.unwrap())
             }
             Expression::IfExp {
                 condition,
@@ -115,7 +115,7 @@ impl Eval for &Expression {
                 alternative,
             } => {
                 let cd = condition.as_ref().eval(env);
-                if is_error(condition.as_ref().eval(env)) {
+                if is_error(&cd) {
                     return cd;
                 }
                 return eval_if_expression(condition.as_ref(), consequesnce, alternative, env);
@@ -134,18 +134,61 @@ impl Eval for &Expression {
             } => {
                 let function = function.as_ref();
                 let func = function.eval(env);
-                if is_error(function.eval(env)) {
+                if is_error(&func) {
                     return func;
                 }
                 let args = eval_expressions(arguments, env);
-                if args.len() == 1 && is_error(Some(args[0].clone())) {
+                if args.len() == 1 && is_error(&Some(args[0].clone())) {
                     return Some(args[0].clone());
                 }
                 return apply_function(func.unwrap(), args);
             }
+            Expression::ArrayExp(elements) => {
+                let elmts = eval_expressions(elements, env);
+                if elmts.len() == 1 && is_error(&Some(elmts[0].clone())) {
+                    return Some(elmts[0].clone());
+                }
+                return Some(Object::ArrayObj(elmts));
+            }
+            Expression::IndexExp { left, index } => {
+                let l = left.as_ref().eval(env);
+                if is_error(&l) {
+                    return l;
+                }
+                let ix = index.as_ref().eval(env);
+                if is_error(&ix) {
+                    return ix;
+                }
+                return eval_index_expression(l.unwrap(), ix.unwrap());
+            }
             _ => None,
         }
     }
+}
+
+fn eval_index_expression(left: Object, index: Object) -> Option<Object> {
+    let err_obj = Object::ErrorObj(format!(
+        "index operator not supported: {}",
+        &left.type_name()
+    ));
+    match &left {
+        Object::ArrayObj(objcs) => match index {
+            Object::IntegerObj(i) => {
+                return eval_array_index_expression(&objcs, &i);
+            }
+            _ => Some(err_obj),
+        },
+        _ => Some(err_obj),
+    }
+}
+
+fn eval_array_index_expression(array: &Vec<Object>, index: &i64) -> Option<Object> {
+    let max = (array.len() - 1) as i64;
+
+    if *index < 0 || *index > max {
+        return Some(Object::Null);
+    }
+    Some(array[*(index) as usize].clone())
 }
 
 fn apply_function(func: Object, args: Vec<Object>) -> Option<Object> {
@@ -196,7 +239,7 @@ fn eval_expressions(exps: &Vec<Box<Expression>>, env: &mut Environment) -> Vec<O
 
     for e in exps {
         let evaluated = e.as_ref().eval(env);
-        if is_error(evaluated.clone()) {
+        if is_error(&evaluated) {
             if let Some(ob) = evaluated {
                 return vec![ob];
             }
@@ -335,7 +378,7 @@ fn eval_integer_infix_expression(operator: &str, left: &i64, right: &i64) -> Opt
     }
 }
 
-fn is_error(obj: Option<Object>) -> bool {
+fn is_error(obj: &Option<Object>) -> bool {
     if let Some(o) = obj {
         match o {
             Object::ErrorObj(_) => return true,
@@ -487,7 +530,10 @@ mod test {
             ("foobar", "identifier not found: foobar"),
             (r#""Hello" - "World""#, "unknown operator: STRING - STRING"),
             ("len(1)", "argument to 'len' not supported, got INTEGER"),
-            (r#"len("1", "2")"#, "wrong number of arguments. got=2, want=1"),
+            (
+                r#"len("1", "2")"#,
+                "wrong number of arguments. got=2, want=1",
+            ),
         ];
         for tt in tests {
             let evaluated = test_eval(tt.0.to_string());
@@ -625,6 +671,67 @@ addTwo(2);
             match evaluated {
                 Some(o) => match o {
                     Object::IntegerObj(i) => assert!(test_integer_object(&o, tt.1)),
+                    _ => panic!(),
+                },
+                None => panic!(),
+            }
+        }
+    }
+
+    #[test]
+    fn test_array_literals() {
+        let input = String::from("[1, 2 * 2, 3 + 3]");
+        let evaluated = test_eval(input);
+        match evaluated {
+            Some(o) => match o {
+                Object::ArrayObj(elements) => {
+                    assert_eq!(elements.len(), 3);
+                    test_integer_object(&elements[0], 1);
+                    test_integer_object(&elements[1], 4);
+                    test_integer_object(&elements[2], 6);
+                }
+                _ => panic!(),
+            },
+            None => panic!(),
+        }
+    }
+
+    #[test]
+    fn test_array_index_expression() {
+        let tests = vec![
+            ("[1, 2, 3][1]", 2),
+            ("[1, 2, 3][2]", 3),
+            ("let i = 0; [1][i];", 1),
+            ("[1, 2, 3][1 + 1];", 3),
+            ("let myArray = [1, 2, 3]; myArray[2];", 3),
+            (
+                "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
+                6,
+            ),
+            ("let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]", 2),
+            //            ("[1, 2, 3][3]", nil),
+            //            ("[1, 2, 3][-1]", nil),
+        ];
+        for tt in tests {
+            let evaluated = test_eval(tt.0.to_string());
+            match evaluated {
+                Some(o) => match o {
+                    Object::IntegerObj(i) => assert!(test_integer_object(&o, tt.1)),
+                    _ => panic!(),
+                },
+                None => panic!(),
+            }
+        }
+    }
+
+    #[test]
+    fn test_array_invalid_index_expression() {
+        let tests = vec![("[1, 2, 3][3]"), ("[1, 2, 3][-1]")];
+        for tt in tests {
+            let evaluated = test_eval(tt.to_string());
+            match evaluated {
+                Some(o) => match o {
+                    Object::Null => {}
                     _ => panic!(),
                 },
                 None => panic!(),

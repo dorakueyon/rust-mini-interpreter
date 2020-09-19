@@ -80,6 +80,8 @@ impl Lexer {
       b'>' => new_token(TokenType::Gt, self.ch),
       b'{' => new_token(TokenType::Lbrace, self.ch),
       b'}' => new_token(TokenType::Rbrace, self.ch),
+      b'[' => new_token(TokenType::Lbracket, self.ch),
+      b']' => new_token(TokenType::Rbracket, self.ch),
       b'"' => {
         let literal = self.read_string();
         Token {
@@ -218,6 +220,7 @@ mod test {
        10 != 9;
        "foobar"
        "foo bar"
+       [1, 2, 3];
        "#
     .to_string();
 
@@ -308,6 +311,16 @@ mod test {
       (TokenType::String, "foobar".to_string()),
       //"foo bar"
       (TokenType::String, "foo bar".to_string()),
+      //[2, 3, 4];
+      (TokenType::Lbracket, "[".to_string()),
+      (TokenType::Int, "1".to_string()),
+      (TokenType::Comma, ",".to_string()),
+      (TokenType::Int, "2".to_string()),
+      (TokenType::Comma, ",".to_string()),
+      (TokenType::Int, "3".to_string()),
+      (TokenType::Rbracket, "]".to_string()),
+      (TokenType::Semicolon, ";".to_string()),
+      // EOF
       (TokenType::Eof, "".to_string()),
     ];
     let mut l = Lexer::new(input);

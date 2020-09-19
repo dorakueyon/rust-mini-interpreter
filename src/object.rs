@@ -59,6 +59,7 @@ pub enum Object {
     BuilinObj {
         func: fn(Vec<Object>) -> Object,
     },
+    ArrayObj(Vec<Object>),
     ErrorObj(String),
 }
 

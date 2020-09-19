@@ -19,6 +19,7 @@ enum Precedence {
     Product,     // * || /
     Prefix,      //-X || !X
     Call,        //myFunction(X)
+    Index,       // array[index]
 }
 
 impl Parser {
@@ -133,6 +134,7 @@ impl Parser {
             TokenType::If => self.parse_if_expression(),
             TokenType::Function => self.parse_fn_expression(),
             TokenType::String => self.parse_string_expression(),
+            TokenType::Lbracket => self.parse_array_expression(),
             _ => {
                 println!("no predefined parse expression: {:?}", self.current_token);
                 None
@@ -156,11 +158,28 @@ impl Parser {
                     self.next_token();
                     left = self.parse_call_expression(left.unwrap());
                 }
+                TokenType::Lbracket => {
+                    self.next_token();
+                    left = self.parse_index_expression(left.unwrap());
+                }
                 _ => return left,
             };
         }
 
         left
+    }
+
+    fn parse_index_expression(&mut self, left: Expression) -> Option<Expression> {
+        self.next_token();
+        let index = self.parse_expression(Precedence::Lowest).unwrap();
+
+        if !self.expect_peek(TokenType::Rbracket) {
+            return None;
+        }
+        return Some(Expression::IndexExp {
+            left: Box::new(left),
+            index: Box::new(index),
+        });
     }
 
     fn parse_ident_expression(&self) -> Option<Expression> {
@@ -185,6 +204,36 @@ impl Parser {
             }
             _ => None,
         }
+    }
+
+    fn parse_array_expression(&mut self) -> Option<Expression> {
+        let array = self.parse_expression_list(TokenType::Rbracket);
+        Some(Expression::ArrayExp(array))
+    }
+
+    fn parse_expression_list(&mut self, end: TokenType) -> Vec<Box<Expression>> {
+        let mut list = Vec::new();
+
+        if self.peek_token_is(end) {
+            self.next_token();
+            return list;
+        }
+
+        self.next_token();
+        let exp = self.parse_expression(Precedence::Lowest).unwrap();
+        list.push(Box::new(exp));
+        while self.peek_token_is(TokenType::Comma) {
+            self.next_token();
+            self.next_token();
+            let exp = self.parse_expression(Precedence::Lowest).unwrap();
+            list.push(Box::new(exp));
+        }
+
+        if !self.expect_peek(end) {
+            return vec![];
+        }
+
+        list
     }
 
     fn parse_prefix_expression(&mut self) -> Option<Expression> {
@@ -360,6 +409,7 @@ impl Parser {
             TokenType::Plus | TokenType::Minus => Precedence::Sum,
             TokenType::Slash | TokenType::Asterisk => Precedence::Product,
             TokenType::Lparen => Precedence::Call,
+            TokenType::Lbracket => Precedence::Index,
             _ => Precedence::Lowest,
         }
     }
@@ -609,6 +659,30 @@ mod test {
             }
         }
 
+        #[test]
+        fn test_array_expression() {
+            let input = String::from("[1, 2, 3]");
+            let l = Lexer::new(input);
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parser_errors(&p);
+
+            assert_eq!(program.statements.len(), 1);
+
+            match &program.statements[0] {
+                Statement::ExpressionStatement { expression } => match expression {
+                    Expression::ArrayExp(elements) => {
+                        assert_eq!(elements.len(), 3);
+                        assert!(test_integer_literal(Box::new(&elements[0]), &1));
+                        assert!(test_integer_literal(Box::new(&elements[1]), &2));
+                        assert!(test_integer_literal(Box::new(&elements[2]), &3));
+                    }
+                    _ => panic!(),
+                },
+                _ => panic!(),
+            }
+        }
+
         let infix_tests = vec![
             // 0: input, 1: left_value, 2: operator, 3: right_value
             ("true == true", true, "==", true),
@@ -677,6 +751,14 @@ mod test {
             (
                 "add(a + b + c * d / f + g)",
                 "add((((a + b) + ((c * d) / f)) + g))",
+            ),
+            (
+                "a * [ 1, 2, 3 , 4][b * c] * d",
+                "((a * ([1, 2, 3, 4][(b * c)])) * d)",
+            ),
+            (
+                "add(a * b[2], b[1], 2 * [1, 2][1])",
+                "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
             ),
         ];
 
@@ -885,6 +967,26 @@ mod test {
                 },
                 _ => panic!(),
             }
+        }
+    }
+
+    #[test]
+    fn test_parsing_index_expressions() {
+        let input = String::from("myArray[1 + 1]");
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&p);
+
+        match &program.statements[0] {
+            Statement::ExpressionStatement { expression } => match expression {
+                Expression::IndexExp { left, index } => {
+                    assert!(test_identifier(left, String::from("myArray")));
+                    assert!(test_infix_expression(index, 1, &String::from("+"), 1))
+                }
+                _ => panic!(),
+            },
+            _ => panic!(),
         }
     }
 
