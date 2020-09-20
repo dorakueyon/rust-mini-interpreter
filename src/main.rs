@@ -2,7 +2,7 @@ use ast::{BlockStatement, Expression, Identifier, Program, Statement};
 use evaluator::Eval;
 use lexer::Lexer;
 use object::{Environment, HashPair, Object};
-use parser::{ParseError, Parser};
+use parser::Parser;
 use repl::Repl;
 use token::{Token, TokenType};
 

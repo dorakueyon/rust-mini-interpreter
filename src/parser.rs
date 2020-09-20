@@ -1,14 +1,13 @@
 use super::{BlockStatement, Expression, Identifier, Lexer, Program, Statement, Token, TokenType};
 use std::collections::BTreeMap;
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter, Result as FormatterResult};
+use std::fmt::Debug;
 
 #[derive(Debug)]
 pub struct Parser {
     lexer: Lexer,
     current_token: Token,
     peek_token: Token,
-    pub errors: Vec<ParseError>,
+    pub errors: Vec<String>,
 }
 
 #[derive(PartialOrd, PartialEq, Debug)]
@@ -461,7 +460,7 @@ impl Parser {
             return true;
         } else {
             println!("expected {:?}. got {:?}", t, self.peek_token.token_type);
-            self.errors.push(ParseError::DefaultError);
+            self.errors.push(String::from("parser error"));
             return false;
         }
     }
@@ -491,7 +490,10 @@ mod test {
             assert!(test_let_statement(stmt, &expected_identifier));
 
             match stmt {
-                Statement::LetStatement { identifier, value } => {
+                Statement::LetStatement {
+                    identifier: _,
+                    value,
+                } => {
                     assert!(test_literal_expression(&value, expected_value));
                 }
                 _ => panic!(),
@@ -505,7 +507,10 @@ mod test {
     fn test_let_statement(s: &Statement, name: &str) -> bool {
         assert_eq!(s.token_literal(), "let");
         match s {
-            Statement::LetStatement { identifier, value } => {
+            Statement::LetStatement {
+                identifier,
+                value: _,
+            } => {
                 assert_eq!(identifier.value, name);
                 return true;
             }
@@ -533,7 +538,7 @@ mod test {
         for stmt in program.statements {
             assert_eq!(stmt.token_literal(), "return");
             match stmt {
-                Statement::ReturnStatement { return_value } => {}
+                Statement::ReturnStatement { return_value: _ } => {}
                 _ => panic!(),
             }
         }
@@ -634,7 +639,7 @@ mod test {
             match &program.statements[0] {
                 Statement::ExpressionStatement { expression } => match expression {
                     Expression::PrefixExp {
-                        token,
+                        token: _,
                         operator,
                         right,
                     } => {
@@ -672,7 +677,7 @@ mod test {
             match &program.statements[0] {
                 Statement::ExpressionStatement { expression } => match expression {
                     Expression::InfixExp {
-                        token,
+                        token: _,
                         left,
                         operator,
                         right,
@@ -687,29 +692,29 @@ mod test {
                 _ => panic!(),
             }
         }
+    }
 
-        #[test]
-        fn test_array_expression() {
-            let input = String::from("[1, 2, 3]");
-            let l = Lexer::new(input);
-            let mut p = Parser::new(l);
-            let program = p.parse_program();
-            check_parser_errors(&p);
+    #[test]
+    fn test_array_expression() {
+        let input = String::from("[1, 2, 3]");
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&p);
 
-            assert_eq!(program.statements.len(), 1);
+        assert_eq!(program.statements.len(), 1);
 
-            match &program.statements[0] {
-                Statement::ExpressionStatement { expression } => match expression {
-                    Expression::ArrayExp(elements) => {
-                        assert_eq!(elements.len(), 3);
-                        assert!(test_integer_literal(Box::new(&elements[0]), &1));
-                        assert!(test_integer_literal(Box::new(&elements[1]), &2));
-                        assert!(test_integer_literal(Box::new(&elements[2]), &3));
-                    }
-                    _ => panic!(),
-                },
+        match &program.statements[0] {
+            Statement::ExpressionStatement { expression } => match expression {
+                Expression::ArrayExp(elements) => {
+                    assert_eq!(elements.len(), 3);
+                    assert!(test_integer_literal(Box::new(&elements[0]), &1));
+                    assert!(test_integer_literal(Box::new(&elements[1]), &2));
+                    assert!(test_integer_literal(Box::new(&elements[2]), &3));
+                }
                 _ => panic!(),
-            }
+            },
+            _ => panic!(),
         }
 
         let infix_tests = vec![
@@ -729,7 +734,7 @@ mod test {
             match &program.statements[0] {
                 Statement::ExpressionStatement { expression } => match expression {
                     Expression::InfixExp {
-                        token,
+                        token: _,
                         left,
                         operator,
                         right,
@@ -830,7 +835,7 @@ mod test {
         match &program.statements[0] {
             Statement::ExpressionStatement { expression } => match expression {
                 Expression::IfExp {
-                    condition,
+                    condition: _,
                     consequesnce,
                     alternative,
                 } => {
@@ -864,7 +869,7 @@ mod test {
         match &program.statements[0] {
             Statement::ExpressionStatement { expression } => match expression {
                 Expression::IfExp {
-                    condition,
+                    condition: _,
                     consequesnce,
                     alternative,
                 } => {
@@ -986,7 +991,10 @@ mod test {
 
             match &program.statements[0] {
                 Statement::ExpressionStatement { expression } => match expression {
-                    Expression::FnExp { parameters, body } => {
+                    Expression::FnExp {
+                        parameters,
+                        body: _,
+                    } => {
                         assert_eq!(parameters.len(), tt.1.len());
                         for (i, ident) in parameters.iter().enumerate() {
                             assert_eq!(ident.value, tt.1[i]);
@@ -1135,7 +1143,7 @@ mod test {
     {
         match exp {
             Expression::InfixExp {
-                token,
+                token: _,
                 operator,
                 left,
                 right,
@@ -1171,31 +1179,5 @@ mod test {
             println!("{}", error);
         }
         panic!();
-    }
-}
-
-impl Error for ParseError {}
-
-pub enum ParseError {
-    DefaultError,
-}
-
-impl ParseError {
-    fn message(&self) -> &str {
-        match self {
-            DefaultError => "Default Error",
-            _ => "NotDefined",
-        }
-    }
-}
-
-impl Display for ParseError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FormatterResult {
-        write!(f, "{}", self.message())
-    }
-}
-impl Debug for ParseError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FormatterResult {
-        write!(f, "{}", self.message())
     }
 }

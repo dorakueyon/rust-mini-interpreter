@@ -40,7 +40,7 @@ impl Eval for &BlockStatement {
 
             match stmt.eval(env) {
                 Some(obj) => match obj {
-                    Object::ReturnObj(bo) => return result,
+                    Object::ReturnObj(_) => return result,
                     Object::ErrorObj(_) => return result,
                     _ => {}
                 },
@@ -67,7 +67,6 @@ impl Eval for Statement {
                 env.set(identifier.value.clone(), val.unwrap());
                 None
             }
-            _ => None,
         }
     }
 }
@@ -85,7 +84,7 @@ impl Eval for &Expression {
             },
             Expression::StrExpr(s) => Some(Object::StringObj(s.clone())),
             Expression::PrefixExp {
-                token,
+                token: _,
                 operator,
                 right,
             } => {
@@ -96,7 +95,7 @@ impl Eval for &Expression {
                 eval_prefix_expression(operator, rt.unwrap())
             }
             Expression::InfixExp {
-                token,
+                token: _,
                 left,
                 operator,
                 right,
@@ -165,7 +164,6 @@ impl Eval for &Expression {
                 return eval_index_expression(l.unwrap(), ix.unwrap());
             }
             Expression::HashExp(pair) => return eval_hash_expression(pair, env),
-            _ => None,
         }
     }
 }
@@ -522,7 +520,7 @@ mod test {
             let evaluated = test_eval(tt.0.to_string());
             match evaluated {
                 Some(e) => match e {
-                    Object::IntegerObj(i) => assert!(test_integer_object(&e, tt.1)),
+                    Object::IntegerObj(_) => assert!(test_integer_object(&e, tt.1)),
                     _ => assert!(test_null_object(e)),
                 },
                 None => panic!(),
@@ -638,7 +636,7 @@ mod test {
                 Object::FunctionObj {
                     parameters,
                     body,
-                    env,
+                    env: _,
                 } => {
                     assert_eq!(parameters.len(), 1);
                     assert_eq!(parameters[0].value, "x");
@@ -737,7 +735,7 @@ addTwo(2);
             dbg!(&evaluated);
             match evaluated {
                 Some(o) => match o {
-                    Object::IntegerObj(i) => assert!(test_integer_object(&o, tt.1)),
+                    Object::IntegerObj(_) => assert!(test_integer_object(&o, tt.1)),
                     _ => panic!(),
                 },
                 None => panic!(),
@@ -831,7 +829,7 @@ addTwo(2);
             let evaluated = test_eval(tt.0.to_string());
             match evaluated {
                 Some(o) => match o {
-                    Object::IntegerObj(i) => assert!(test_integer_object(&o, tt.1)),
+                    Object::IntegerObj(_) => assert!(test_integer_object(&o, tt.1)),
                     _ => panic!(),
                 },
                 None => panic!(),
@@ -895,7 +893,7 @@ addTwo(2);
             let evaluated = test_eval(tt.0.to_string());
             match &evaluated {
                 Some(o) => match o {
-                    Object::IntegerObj(int) => assert!(test_integer_object(o, tt.1)),
+                    Object::IntegerObj(_) => assert!(test_integer_object(o, tt.1)),
                     _ => panic!(),
                 },
                 None => panic!(),
@@ -911,7 +909,6 @@ addTwo(2);
             }
             _ => panic!(),
         }
-        false
     }
 
     fn test_boolean_object(obj: &Object, expected: bool) -> bool {
@@ -922,6 +919,5 @@ addTwo(2);
             }
             _ => panic!(),
         }
-        false
     }
 }

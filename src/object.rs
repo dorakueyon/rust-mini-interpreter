@@ -1,5 +1,5 @@
 use super::{builtins, BlockStatement, Identifier};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub struct Environment {

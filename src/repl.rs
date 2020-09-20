@@ -1,5 +1,4 @@
-use super::{Environment, Eval, Lexer, Object, ParseError, Parser, TokenType};
-use std::collections::HashMap;
+use super::{Environment, Eval, Lexer, Parser};
 use std::io;
 use std::io::Write;
 
@@ -16,7 +15,7 @@ impl Repl {
       let mut input = String::new();
       match io::stdin().read_line(&mut input) {
         Ok(_) => {
-          let mut l = Lexer::new(input);
+          let l = Lexer::new(input);
           let mut p = Parser::new(l);
           let program = p.parse_program();
 
@@ -33,7 +32,7 @@ impl Repl {
       }
     }
   }
-  fn print_parse_errors(errors: Vec<ParseError>) {
+  fn print_parse_errors(errors: Vec<String>) {
     for pe in errors.iter() {
       println!("{}", pe)
     }

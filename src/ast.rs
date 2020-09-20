@@ -1,6 +1,5 @@
 use super::TokenType;
 use std::collections::BTreeMap;
-use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result as FormatterResult};
 
 #[derive(Debug, PartialEq, Clone, Ord, PartialOrd, Eq)]
@@ -25,14 +24,16 @@ pub struct BlockStatement {
 impl Statement {
     pub fn token_literal(&self) -> String {
         match self {
-            Statement::LetStatement { identifier, value } => "let".to_string(),
-            Statement::ReturnStatement { return_value } => "return".to_string(),
+            Statement::LetStatement {
+                identifier: _,
+                value: _,
+            } => "let".to_string(),
+            Statement::ReturnStatement { return_value: _ } => "return".to_string(),
             Statement::ExpressionStatement { expression } => match expression {
                 Expression::IntegerExpr(i) => i.to_string(),
                 Expression::IdentExpr(s) => s.clone(),
                 _ => "not defined expression".to_string(),
             },
-            _ => "not defined".to_string(),
         }
     }
 }
@@ -73,7 +74,6 @@ impl Display for Statement {
                 write!(f, "{} {};", self.token_literal(), return_value)
             }
             Statement::ExpressionStatement { expression } => write!(f, "{}", expression),
-            _ => write!(f, "hoge"),
         }
     }
 }
@@ -85,12 +85,12 @@ impl Display for Expression {
             Expression::IdentExpr(s) => s.clone(),
             Expression::StrExpr(s) => s.clone(),
             Expression::PrefixExp {
-                token,
+                token: _,
                 operator,
                 right,
             } => format!("({}{})", operator, &right),
             Expression::InfixExp {
-                token,
+                token: _,
                 right,
                 operator,
                 left,
@@ -174,7 +174,6 @@ impl Display for Expression {
 
 #[derive(Debug, PartialEq, Clone, Ord, PartialOrd, Eq)]
 pub enum Expression {
-    Default,
     IntegerExpr(i64),
     IdentExpr(String),
     StrExpr(String),
