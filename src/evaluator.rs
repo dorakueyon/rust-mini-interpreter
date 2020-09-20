@@ -682,7 +682,7 @@ addTwo(2);
     fn test_eval(input: String) -> Option<Object> {
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
+        let program = p.parse_program().unwrap();
         let mut env = Environment::new();
 
         match program.eval(&mut env) {

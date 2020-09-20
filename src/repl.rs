@@ -1,4 +1,4 @@
-use super::{Environment, Eval, Lexer, Parser};
+use super::{Environment, Errors, Eval, Lexer, Parser};
 use std::io;
 use std::io::Write;
 
@@ -17,24 +17,24 @@ impl Repl {
         Ok(_) => {
           let l = Lexer::new(input);
           let mut p = Parser::new(l);
-          let program = p.parse_program();
-
-          if p.errors.len() != 0 {
-            Repl::print_parse_errors(p.errors);
-            continue;
-          }
-          if let Some(evaluated) = program.eval(&mut env) {
-            println!("{}", evaluated.inspect());
-            io::stdout().flush().unwrap();
+          match p.parse_program() {
+            Ok(p) => {
+              if let Some(evaluated) = p.eval(&mut env) {
+                println!("{}", evaluated.inspect());
+                io::stdout().flush().unwrap();
+              }
+            }
+            Err(e) => {
+              Repl::print_parse_errors(e);
+              continue;
+            }
           }
         }
         Err(_) => break,
       }
     }
   }
-  fn print_parse_errors(errors: Vec<String>) {
-    for pe in errors.iter() {
-      println!("{}", pe)
-    }
+  fn print_parse_errors(errors: Errors) {
+    println!("{}", errors)
   }
 }

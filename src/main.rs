@@ -1,4 +1,5 @@
 use ast::{BlockStatement, Expression, Identifier, Program, Statement};
+use errors::Errors;
 use evaluator::Eval;
 use lexer::Lexer;
 use object::{Environment, HashPair, Object};
@@ -8,6 +9,7 @@ use token::{Token, TokenType};
 
 mod ast;
 mod builtins;
+mod errors;
 mod evaluator;
 mod lexer;
 mod object;

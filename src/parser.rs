@@ -1,4 +1,6 @@
-use super::{BlockStatement, Expression, Identifier, Lexer, Program, Statement, Token, TokenType};
+use super::{
+    BlockStatement, Errors, Expression, Identifier, Lexer, Program, Statement, Token, TokenType,
+};
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
@@ -52,40 +54,39 @@ impl Parser {
         self.peek_token = self.lexer.next_token()
     }
 
-    pub fn parse_program(&mut self) -> Program {
+    pub fn parse_program(&mut self) -> Result<Program, Errors> {
         let mut statements: Vec<Statement> = Vec::new();
 
         loop {
             if self.current_token.token_type == TokenType::Eof {
                 break;
             }
-            if let Some(stmt) = self.parse_statement() {
-                statements.push(stmt)
-            }
+            let stmt = self.parse_statement()?;
+            statements.push(stmt);
             self.next_token();
         }
 
-        Program { statements }
+        Ok(Program { statements })
     }
 
-    fn parse_statement(&mut self) -> Option<Statement> {
+    fn parse_statement(&mut self) -> Result<Statement, Errors> {
         match self.current_token.token_type {
-            TokenType::Let => return self.parse_let_statement(),
-            TokenType::Return => return self.parse_return_statement(),
-            _ => return self.parse_expression_statement(),
+            TokenType::Let => return Ok(self.parse_let_statement()?),
+            TokenType::Return => return Ok(self.parse_return_statement()?),
+            _ => return Ok(self.parse_expression_statement()?),
         };
     }
 
-    fn parse_let_statement(&mut self) -> Option<Statement> {
+    fn parse_let_statement(&mut self) -> Result<Statement, Errors> {
         if !self.expect_peek(TokenType::Ident) {
-            return None;
+            return Err(Errors::ParseError);
         }
         let identifier = Identifier {
             token: self.current_token.token_type,
             value: self.current_token.literal.clone(),
         };
         if !self.expect_peek(TokenType::Assign) {
-            return None;
+            return Err(Errors::ParseError);
         }
 
         self.next_token();
@@ -96,10 +97,10 @@ impl Parser {
             self.next_token()
         }
 
-        return Some(Statement::LetStatement { identifier, value });
+        return Ok(Statement::LetStatement { identifier, value });
     }
 
-    fn parse_return_statement(&mut self) -> Option<Statement> {
+    fn parse_return_statement(&mut self) -> Result<Statement, Errors> {
         self.next_token();
 
         let return_value = self.parse_expression(Precedence::Lowest).unwrap();
@@ -108,20 +109,20 @@ impl Parser {
             self.next_token()
         }
 
-        return Some(Statement::ReturnStatement { return_value });
+        return Ok(Statement::ReturnStatement { return_value });
     }
 
-    fn parse_expression_statement(&mut self) -> Option<Statement> {
+    fn parse_expression_statement(&mut self) -> Result<Statement, Errors> {
         let expression = match self.parse_expression(Precedence::Lowest) {
             Some(exp) => exp,
-            None => return None,
+            None => return Err(Errors::ParseError),
         };
 
         if self.peek_token_is(TokenType::Semicolon) {
             self.next_token()
         }
 
-        Some(Statement::ExpressionStatement { expression })
+        Ok(Statement::ExpressionStatement { expression })
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
@@ -377,7 +378,7 @@ impl Parser {
         self.next_token();
 
         while !self.current_token_is(TokenType::Rbrace) && !self.current_token_is(TokenType::Eof) {
-            if let Some(s) = self.parse_statement() {
+            if let Ok(s) = self.parse_statement() {
                 statements.push(s)
             }
             self.next_token();
@@ -482,7 +483,7 @@ mod test {
             let lexer = Lexer::new(String::from(input));
             let mut parser = Parser::new(lexer);
 
-            let program = parser.parse_program();
+            let program = parser.parse_program().unwrap();
             check_parser_errors(&parser);
 
             assert_eq!(program.statements.len(), 1);
@@ -530,7 +531,7 @@ mod test {
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
 
-        let program = parser.parse_program();
+        let program = parser.parse_program().unwrap();
         check_parser_errors(&parser);
 
         assert_eq!(program.statements.len(), 3);
@@ -549,7 +550,7 @@ mod test {
         let input = "true;".to_string();
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
+        let program = p.parse_program().unwrap();
         check_parser_errors(&p);
 
         assert_eq!(program.statements.len(), 1);
@@ -570,7 +571,7 @@ mod test {
 
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
+        let program = p.parse_program().unwrap();
         check_parser_errors(&p);
 
         assert_eq!(program.statements.len(), 1);
@@ -591,7 +592,7 @@ mod test {
         let input = "5;".to_string();
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
+        let program = p.parse_program().unwrap();
         check_parser_errors(&p);
 
         assert_eq!(program.statements.len(), 1);
@@ -612,7 +613,7 @@ mod test {
         let input = r#""hello world";"#;
         let l = Lexer::new(input.to_string());
         let mut p = Parser::new(l);
-        let program = p.parse_program();
+        let program = p.parse_program().unwrap();
         check_parser_errors(&p);
 
         match &program.statements[0] {
@@ -633,7 +634,7 @@ mod test {
         for tt in prefix_tests.iter() {
             let l = Lexer::new(String::from(tt.0));
             let mut p = Parser::new(l);
-            let program = p.parse_program();
+            let program = p.parse_program().unwrap();
             check_parser_errors(&p);
             assert_eq!(program.statements.len(), 1);
             match &program.statements[0] {
@@ -670,7 +671,7 @@ mod test {
         for tt in infix_tests.iter() {
             let l = Lexer::new(tt.0.to_string());
             let mut p = Parser::new(l);
-            let program = p.parse_program();
+            let program = p.parse_program().unwrap();
             check_parser_errors(&p);
 
             assert_eq!(program.statements.len(), 1);
@@ -699,7 +700,7 @@ mod test {
         let input = String::from("[1, 2, 3]");
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
+        let program = p.parse_program().unwrap();
         check_parser_errors(&p);
 
         assert_eq!(program.statements.len(), 1);
@@ -727,7 +728,7 @@ mod test {
         for tt in infix_tests.iter() {
             let l = Lexer::new(tt.0.to_string());
             let mut p = Parser::new(l);
-            let program = p.parse_program();
+            let program = p.parse_program().unwrap();
             check_parser_errors(&p);
 
             assert_eq!(program.statements.len(), 1);
@@ -799,7 +800,7 @@ mod test {
         for tt in tests.iter() {
             let l = Lexer::new(tt.0.to_string());
             let mut p = Parser::new(l);
-            let program = p.parse_program();
+            let program = p.parse_program().unwrap();
             check_parser_errors(&p);
             //dbg!(&program);
 
@@ -827,7 +828,7 @@ mod test {
 
         let l = Lexer::new(input.to_string());
         let mut p = Parser::new(l);
-        let program = p.parse_program();
+        let program = p.parse_program().unwrap();
         check_parser_errors(&p);
 
         assert_eq!(program.statements.len(), 1);
@@ -861,7 +862,7 @@ mod test {
 
         let l = Lexer::new(input.to_string());
         let mut p = Parser::new(l);
-        let program = p.parse_program();
+        let program = p.parse_program().unwrap();
         check_parser_errors(&p);
 
         assert_eq!(program.statements.len(), 1);
@@ -905,7 +906,7 @@ mod test {
         let input = "add(1, 2 * 3, 4 + 5);";
         let l = Lexer::new(input.to_string());
         let mut p = Parser::new(l);
-        let program = p.parse_program();
+        let program = p.parse_program().unwrap();
         dbg!(&program);
         //check_parser_errors(&p);
 
@@ -945,7 +946,7 @@ mod test {
 
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
+        let program = p.parse_program().unwrap();
         check_parser_errors(&p);
 
         assert_eq!(program.statements.len(), 1);
@@ -986,7 +987,7 @@ mod test {
         for tt in tests {
             let l = Lexer::new(tt.0.to_string());
             let mut p = Parser::new(l);
-            let program = p.parse_program();
+            let program = p.parse_program().unwrap();
             check_parser_errors(&p);
 
             match &program.statements[0] {
@@ -1012,7 +1013,7 @@ mod test {
         let input = String::from("myArray[1 + 1]");
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
+        let program = p.parse_program().unwrap();
         check_parser_errors(&p);
 
         match &program.statements[0] {
@@ -1033,7 +1034,7 @@ mod test {
 
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
+        let program = p.parse_program().unwrap();
         check_parser_errors(&p);
 
         assert_eq!(program.statements.len(), 1);
@@ -1070,7 +1071,7 @@ mod test {
 
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
+        let program = p.parse_program().unwrap();
         check_parser_errors(&p);
 
         match &program.statements[0] {
