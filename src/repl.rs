@@ -18,12 +18,16 @@ impl Repl {
           let l = Lexer::new(input);
           let mut p = Parser::new(l);
           match p.parse_program() {
-            Ok(p) => {
-              if let Some(evaluated) = p.eval(&mut env) {
+            Ok(p) => match p.eval(&mut env) {
+              Ok(evaluated) => {
                 println!("{}", evaluated.inspect());
                 io::stdout().flush().unwrap();
               }
-            }
+              Err(e) => {
+                Repl::print_parse_errors(e);
+                continue;
+              }
+            },
             Err(e) => {
               Repl::print_parse_errors(e);
               continue;

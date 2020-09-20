@@ -46,6 +46,7 @@ impl Environment {
 
 #[derive(Debug, PartialEq, Clone, Eq, Ord, PartialOrd)]
 pub enum Object {
+    None,
     Null,
     IntegerObj(i64),
     BooleanObj(bool),
@@ -107,6 +108,7 @@ impl Object {
             }
             Object::ErrorObj(s) => s.clone(),
             Object::Null => "null".to_string(),
+            Object::None => "".to_string(),
             _ => "".to_string(),
         }
     }
