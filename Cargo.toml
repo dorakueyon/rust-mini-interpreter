@@ -1,5 +1,5 @@
 [package]
-name = "rust-monkey"
+name = "rust-mini-interpreter"
 version = "0.1.0"
 authors = ["YoheiIguchi <matthew.at.muse@gmail.com>"]
 edition = "2018"
